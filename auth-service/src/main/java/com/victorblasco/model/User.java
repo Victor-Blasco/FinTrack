@@ -1,42 +1,57 @@
 package com.victorblasco.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Entidad JPA que representa a un usuario registrado en la base de datos PostgreSQL.
+ *
+ * @author Victor Blasco
+ */
 @Entity
 @Table(name = "users")
 public class User {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
-
-    @Column(nullable = false, length = 20)
-    private String role = "ROLE_USER";
+    @Column(nullable = false)
+    private String password;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        if (role == null) {
-            role = "ROLE_USER";
-        }
+    /**
+     * Constructor por defecto requerido por JPA.
+     */
+    public User() {
     }
 
-    public User() {}
-
-    public User(String email, String passwordHash) {
+    /**
+     * Crea un nuevo objeto de usuario con email y contraseña cifrada.
+     *
+     * @param email correo electrónico único del usuario
+     * @param password hash BCrypt de la contraseña
+     */
+    public User(String email, String password) {
         this.email = email;
-        this.passwordHash = passwordHash;
-        this.role = "ROLE_USER";
+        this.password = password;
+        this.createdAt = Instant.now();
+    }
+
+    /**
+     * Asigna automáticamente la marca de tiempo antes de insertar en base de datos.
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
     }
 
     public UUID getId() {
@@ -55,27 +70,19 @@ public class User {
         this.email = email;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getPassword() {
+        return password;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }

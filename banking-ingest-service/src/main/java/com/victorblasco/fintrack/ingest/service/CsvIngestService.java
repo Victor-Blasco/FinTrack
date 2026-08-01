@@ -22,11 +22,19 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
 
+/**
+ * Servicio de negocio encargado de la ingesta masiva de extractos bancarios en formato CSV.
+ * <p>
+ * Incluye cálculo de resumen SHA-256 para deduplicación estricta, respuesta rápida de procesamiento
+ * asíncrono y parseo en streaming línea a línea auditando filas corruptas.
+ * </p>
+ *
+ * @author Victor Blasco
+ */
 @Service
 public class CsvIngestService {
 
@@ -36,6 +44,13 @@ public class CsvIngestService {
     private final CsvBatchAuditRepository csvBatchAuditRepository;
     private final RawTransactionProducer rawTransactionProducer;
 
+    /**
+     * Construye el servicio inyectando los repositorios de persistencia y el productor de eventos Kafka.
+     *
+     * @param csvUploadRepository repositorio de deduplicación CSV
+     * @param csvBatchAuditRepository repositorio de auditoría de errores de lotes
+     * @param rawTransactionProducer productor de Kafka
+     */
     public CsvIngestService(
             CsvUploadRepository csvUploadRepository,
             CsvBatchAuditRepository csvBatchAuditRepository,
@@ -46,6 +61,19 @@ public class CsvIngestService {
         this.rawTransactionProducer = rawTransactionProducer;
     }
 
+    /**
+     * Procesa la solicitud inicial de subida de un archivo CSV.
+     * <p>
+     * Calcula el resumen SHA-256 del contenido. Si el resumen ya existe en la base de datos,
+     * lanza {@link DuplicateCsvException}. En caso contrario, registra la subida y programa
+     * el análisis asíncrono.
+     * </p>
+     *
+     * @param file archivo multipart en formato CSV enviado por el cliente
+     * @return {@link CsvUploadResponse} con el identificador del lote asignado y el estado inicial
+     * @throws DuplicateCsvException si el archivo ya fue subido previamente
+     * @throws IllegalArgumentException si el archivo está vacío o es nulo
+     */
     public CsvUploadResponse processCsvUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo CSV no puede estar vacío");
@@ -70,6 +98,16 @@ public class CsvIngestService {
         return new CsvUploadResponse(batchId, "PROCESSING", hash);
     }
 
+    /**
+     * Lee y analiza asíncronamente el archivo CSV línea a línea en streaming.
+     * <p>
+     * Por cada fila válida, publica un evento {@link RawTransactionEvent} en Kafka.
+     * Si una fila está malformada, guarda un registro en {@link CsvBatchAudit} y continúa con las demás filas.
+     * </p>
+     *
+     * @param file archivo multipart CSV
+     * @param batchId identificador del lote
+     */
     @Async
     public void parseAndStreamCsv(MultipartFile file, UUID batchId) {
         log.info("Iniciando análisis asíncrono de lotes CSV para batchId={}", batchId);
@@ -125,6 +163,12 @@ public class CsvIngestService {
         }
     }
 
+    /**
+     * Calcula el hash SHA-256 del contenido completo de un archivo MultipartFile.
+     *
+     * @param file archivo del cual calcular el hash
+     * @return cadena de texto hexadecimal con el hash SHA-256
+     */
     private String computeSha256Hash(MultipartFile file) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

@@ -7,6 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * Productor de eventos de Apache Kafka para publicar transacciones sin procesar al tópico raw-transactions.
+ *
+ * @author Victor Blasco
+ */
 @Component
 public class RawTransactionProducer {
 
@@ -15,6 +20,12 @@ public class RawTransactionProducer {
     private final KafkaTemplate<String, RawTransactionEvent> kafkaTemplate;
     private final String topicName;
 
+    /**
+     * Construye el productor inyectando la plantilla de Kafka y el nombre del tópico configurado.
+     *
+     * @param kafkaTemplate plantilla para publicación en Kafka
+     * @param topicName nombre del tópico configurado en las propiedades
+     */
     public RawTransactionProducer(
             KafkaTemplate<String, RawTransactionEvent> kafkaTemplate,
             @Value("${app.kafka.topics.raw-transactions:raw-transactions}") String topicName
@@ -23,6 +34,11 @@ public class RawTransactionProducer {
         this.topicName = topicName;
     }
 
+    /**
+     * Publica un evento {@link RawTransactionEvent} utilizando el transactionId como clave de particionamiento.
+     *
+     * @param event evento de transacción a publicar
+     */
     public void send(RawTransactionEvent event) {
         log.info("Publicando evento raw-transaction para transactionId={}", event.transactionId());
         kafkaTemplate.send(topicName, event.transactionId(), event);

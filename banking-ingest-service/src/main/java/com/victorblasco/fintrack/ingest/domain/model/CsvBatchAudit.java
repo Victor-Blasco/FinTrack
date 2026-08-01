@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Entidad JPA para auditar y registrar errores de lectura en filas malformadas durante la ingesta CSV.
+ *
+ * @author Victor Blasco
+ */
 @Entity
 @Table(name = "csv_batches_audit", indexes = {
         @Index(name = "idx_batch_id", columnList = "batchId")
@@ -29,8 +34,20 @@ public class CsvBatchAudit {
     @Column(nullable = false)
     private Instant loggedAt;
 
+    /**
+     * Constructor por defecto para JPA.
+     */
     public CsvBatchAudit() {}
 
+    /**
+     * Crea un nuevo registro de auditoría de error para una fila de un lote CSV.
+     *
+     * @param batchId identificador del lote
+     * @param rowNumber número de fila dentro del archivo CSV
+     * @param errorMessage descripción del error de parseo o formato
+     * @param rawContent contenido original en texto plano de la fila
+     * @param loggedAt fecha y hora del registro del error
+     */
     public CsvBatchAudit(UUID batchId, int rowNumber, String errorMessage, String rawContent, Instant loggedAt) {
         this.batchId = batchId;
         this.rowNumber = rowNumber;

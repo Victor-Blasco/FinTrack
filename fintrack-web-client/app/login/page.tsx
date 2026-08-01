@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck, Zap } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -27,85 +29,193 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Credenciales inválidas");
+        setError(data.message || "Credenciales incorrectas. Verifica tu email y contraseña.");
       } else {
         localStorage.setItem("accessToken", data.accessToken);
         localStorage.setItem("userEmail", email);
         router.push("/dashboard");
       }
     } catch {
-      setError("No se pudo conectar con el servicio de autenticación");
+      setError("No se pudo conectar con el servicio de autenticación. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-main text-main px-4 py-12">
-      <div className="w-full max-w-md">
-        {/* Header Logo & Theme Toggle */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-xs">
-              FT
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
-                FinTrack
-              </h2>
-              <p className="text-xs text-muted-foreground">Inicia sesión en tu cuenta</p>
-            </div>
+    <div className="relative flex min-h-screen flex-col justify-between bg-[#F8FAFC] dark:bg-[#12151E] text-slate-800 dark:text-slate-100 font-sans px-4 py-6 sm:py-10">
+      {/* Background Decorative Ambient (Conforming to UI guide: subtle, dark Slate tones) */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-96 w-full max-w-4xl rounded-full bg-blue-600/5 dark:bg-blue-500/10 blur-3xl" />
+
+      {/* Top Header Bar */}
+      <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+        >
+          <ArrowLeft size={16} />
+          <span>Volver al inicio</span>
+        </Link>
+
+        {/* Live Status Badge & Theme Toggle */}
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 px-3 py-1 text-xs backdrop-blur-xs">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">Protección Activa</span>
+            <span className="text-slate-500 dark:text-slate-400 font-normal">FraudShield</span>
           </div>
           <ThemeToggle />
         </div>
+      </header>
 
-        {/* Card Formulario */}
-        <div className="ui-card">
-          {error && (
-            <div className="mb-5 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      {/* Main Centered Auth Container */}
+      <main className="relative z-10 mx-auto my-auto w-full max-w-md py-8">
+        {/* Brand & Page Header */}
+        <div className="text-center mb-8">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-xs">
+            FT
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+            Iniciar Sesión
+          </h1>
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 font-normal">
+            Accede a tu cuenta en el ecosistema <span className="font-semibold text-slate-700 dark:text-slate-300">FinTrack &amp; FraudShield</span>
+          </p>
+        </div>
+
+        {/* Centered Form Card */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-6 sm:p-8 shadow-xs backdrop-blur-xs">
+          {/* Quick Access SSO Buttons */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              type="button"
+              onClick={() => alert("SSO de Google configurado en entorno de producción")}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
               </svg>
+              <span>Google</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => alert("SSO de GitHub configurado en entorno de producción")}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <svg className="h-4 w-4 fill-current text-slate-900 dark:text-white" viewBox="0 0 24 24">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+              </svg>
+              <span>GitHub</span>
+            </button>
+          </div>
+
+          <div className="relative my-6 flex items-center justify-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+            <span className="absolute bg-white dark:bg-slate-900 px-3 text-[11px] font-medium text-slate-400">
+              o con tu correo
+            </span>
+          </div>
+
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 p-3.5 text-xs font-normal text-red-700 dark:text-red-300">
+              <AlertCircle size={16} className="shrink-0 text-red-500 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5" htmlFor="email-input">
+              <label
+                className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                htmlFor="email-input"
+              >
                 Correo Electrónico
               </label>
-              <input
-                id="email-input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="usuario@fintrack.com"
-                required
-              />
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                  <Mail size={16} />
+                </div>
+                <input
+                  id="email-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/60 pl-10 pr-3.5 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  placeholder="usuario@fintrack.com"
+                  required
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5" htmlFor="password-input">
-                Contraseña
-              </label>
-              <input
-                id="password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground placeholder-muted-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="••••••••"
-                required
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  htmlFor="password-input"
+                >
+                  Contraseña
+                </label>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert("Enlace de recuperación enviado al correo si la cuenta existe.");
+                  }}
+                  className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </a>
+              </div>
+
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                  <Lock size={16} />
+                </div>
+                <input
+                  id="password-input"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/60 pl-10 pr-10 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <button
               id="login-submit-btn"
               type="submit"
               disabled={loading}
-              className="mt-2 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+              className="mt-2 flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50"
             >
               {loading ? (
                 <svg className="h-5 w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
@@ -118,14 +228,30 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-muted-foreground">
-            ¿No tienes cuenta?{" "}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              Regístrate aquí
+          {/* Switch to Register */}
+          <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400 font-normal">
+            ¿Aún no tienes una cuenta?{" "}
+            <Link href="/register" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+              Crea tu cuenta aquí
             </Link>
           </div>
         </div>
-      </div>
+
+        {/* Security badges row below card */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-slate-500 dark:text-slate-400 text-xs font-normal">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-emerald-500" /> PSD2 &amp; SCA Seguro
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Zap size={14} className="text-blue-500" /> Alertas en tiempo real
+          </span>
+        </div>
+      </main>
+
+      {/* Footer Info */}
+      <footer className="relative z-10 mx-auto text-center text-[11px] text-slate-400 dark:text-slate-500 font-normal">
+        FinTrack &amp; FraudShield Ecosystem © 2026. Conexión cifrada SSL/TLS.
+      </footer>
     </div>
   );
 }

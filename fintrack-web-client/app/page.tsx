@@ -136,7 +136,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Background Decorative Glow (Fondo de gradiente suave) */}
-      <div className="pointer-events-none absolute top-[-100px] left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-gradient-to-b from-blue-500/15 via-indigo-500/5 to-transparent blur-3xl opacity-70"></div>
+      <div className="pointer-events-none absolute -top-25 left-1/2 -translate-x-1/2 h-125 w-200 rounded-full bg-linear-to-b from-blue-500/15 via-indigo-500/5 to-transparent blur-3xl opacity-70"></div>
 
       {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
@@ -480,7 +480,7 @@ export default function LandingPage() {
         {/* FINAL CTA */}
         <section className="border-t border-border bg-surface/40">
           <div className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
-            <div className="ui-card bg-gradient-to-br from-card via-card to-primary/5 p-8 sm:p-12 relative overflow-hidden">
+            <div className="ui-card bg-linear-to-br from-card via-card to-primary/5 p-8 sm:p-12 relative overflow-hidden">
               <h2 className="max-w-xl text-2xl font-bold tracking-tight sm:text-4xl text-foreground">
                 Empieza hoy con total tranquilidad financiera
               </h2>

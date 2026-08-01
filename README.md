@@ -1,12 +1,12 @@
-# 📊 FinTrack & FraudShield Ecosystem
+# 📊 Ecosistema FinTrack & FraudShield
 
-Welcome to the **FinTrack & FraudShield Ecosystem**, an enterprise-grade financial technology platform built using **Java 21/25 (Spring Boot 4.x)** and **Next.js (v16+)**, designed under a **Microservices** and **Event-Driven Architecture (EDA)** pattern.
+Bienvenido al **Ecosistema FinTrack & FraudShield**, una plataforma de tecnología financiera de nivel empresarial desarrollada en **Java 21/25 (Spring Boot 4.x)** y **Next.js (v16+)**, diseñada bajo una arquitectura de **Microservicios** y el patrón **Event-Driven Architecture (EDA)**.
 
-The platform provides a consolidated dashboard for personal finance management while running real-time, low-latency transaction fraud analysis.
+La plataforma proporciona un panel unificado para la gestión de finanzas personales a la vez que realiza análisis de fraude de transacciones en tiempo real con baja latencia.
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Guía de Inicio Rápido
 
 ### ⚡ Opción Rápida (Un solo comando)
 Para levantar **toda la aplicación** (PostgreSQL + Kafka + los 5 Microservicios + Cliente Web Next.js) automáticamente, ejecuta en PowerShell:
@@ -22,77 +22,77 @@ Para levantar **toda la aplicación** (PostgreSQL + Kafka + los 5 Microservicios
 
 ---
 
-### 📋 Prerequisites
-* **Java Development Kit (JDK):** Version 21 or 25 (Eclipse Temurin LTS recommended).
-* **Node.js:** LTS version (v20+ or v22+).
-* **Docker & Docker Compose:** Installed and running.
-* **Maven:** Managed via [mvnw](file:///C:/Users/Victor/IdeaProjects/FinTrack/mvnw) / [mvnw.cmd](file:///C:/Users/Victor/IdeaProjects/FinTrack/mvnw.cmd).
+### 📋 Requisitos Previos
+* **Java Development Kit (JDK):** Versión 21 o 25 (se recomienda Eclipse Temurin LTS).
+* **Node.js:** Versión LTS (v20+ o v22+).
+* **Docker & Docker Compose:** Instalado y en ejecución.
+* **Maven:** Gestionado mediante [mvnw](file:///C:/Users/Victor/IdeaProjects/FinTrack/mvnw) / [mvnw.cmd](file:///C:/Users/Victor/IdeaProjects/FinTrack/mvnw.cmd).
 
 ---
 
-### 1. Configure the Environment
-Verify the environment configurations in the root [.env](file:///C:/Users/Victor/IdeaProjects/FinTrack/.env) file.
+### 1. Configurar el Entorno
+Verifica las configuraciones de entorno en el archivo [.env](file:///C:/Users/Victor/IdeaProjects/FinTrack/.env) en el directorio raíz.
 
-### 2. Launch Infrastructure Services (PostgreSQL & Apache Kafka)
-Spin up the PostgreSQL database and Apache Kafka broker (in KRaft mode) using:
+### 2. Iniciar Servicios de Infraestructura (PostgreSQL & Apache Kafka)
+Levanta la base de datos PostgreSQL y el broker Apache Kafka (en modo KRaft) usando:
 ```powershell
 docker-compose up -d
 ```
-* **PostgreSQL:** Running at `localhost:5432` (`fintrack_db`).
-* **Kafka UI:** Access the visual Kafka monitor at [http://localhost:8080](http://localhost:8080).
+* **PostgreSQL:** Ejecutándose en `localhost:5432` (`fintrack_db`).
+* **Kafka UI:** Accede al monitor visual de Kafka en [http://localhost:8080](http://localhost:8080).
 
-### 3. Build Backend Microservices
-Run the following Maven command at the root directory to compile and package all modules:
+### 3. Compilar los Microservicios Backend
+Ejecuta el siguiente comando Maven en el directorio raíz para compilar y empaquetar todos los módulos:
 ```powershell
 ./mvnw clean package -DskipTests
 ```
 
-### 4. Run the Backend Microservices
-Each Spring Boot microservice operates independently on its allocated port:
+### 4. Ejecutar los Microservicios Backend
+Cada microservicio Spring Boot funciona de forma independiente en su puerto asignado:
 
-| Microservice | Port | Description | Startup Command |
+| Microservicio | Puerto | Descripción | Comando de Inicio |
 | :--- | :--- | :--- | :--- |
-| **`auth-service`** | `8081` | Authentication & JWT Tokens | `java -jar auth-service/target/auth-service-0.0.1-SNAPSHOT.jar` |
-| **`banking-ingest-service`** | `8082` | Webhooks PSD2 & CSV Ingestion | `java -jar banking-ingest-service/target/banking-ingest-service-0.0.1-SNAPSHOT.jar` |
-| **`finance-profile-service`** | `8083` | Ledger, Budgets & Accounts | `java -jar finance-profile-service/target/finance-profile-service-0.0.1-SNAPSHOT.jar` |
+| **`auth-service`** | `8081` | Autenticación y Tokens JWT | `java -jar auth-service/target/auth-service-0.0.1-SNAPSHOT.jar` |
+| **`banking-ingest-service`** | `8082` | Webhooks PSD2 e Ingesta CSV | `java -jar banking-ingest-service/target/banking-ingest-service-0.0.1-SNAPSHOT.jar` |
+| **`finance-profile-service`** | `8083` | Libro Contable, Presupuestos y Cuentas | `java -jar finance-profile-service/target/finance-profile-service-0.0.1-SNAPSHOT.jar` |
 | **`fraud-detection-service`** | `8084` | Real-time Fraud Analysis | `java -jar fraud-detection-service/target/fraud-detection-service-0.0.1-SNAPSHOT.jar` |
-| **`categorization-service`** | `8085` | Expense Categorization Engine | `java -jar categorization-service/target/categorization-service-0.0.1-SNAPSHOT.jar` |
+| **`categorization-service`** | `8085` | Motor de Categorización de Gastos | `java -jar categorization-service/target/categorization-service-0.0.1-SNAPSHOT.jar` |
 
-*To run a single service via Maven during development:*
+*Para ejecutar un solo servicio mediante Maven durante el desarrollo:*
 ```powershell
 ./mvnw spring-boot:run -pl auth-service
 ```
 
-### 5. Run the Web Client (Next.js Dashboard)
-Navigate to the web client module, install packages if needed, and start the development server:
+### 5. Ejecutar el Cliente Web (Next.js Dashboard)
+Accede al módulo del cliente web, instala los paquetes si es necesario y arranca el servidor de desarrollo:
 ```powershell
 cd fintrack-web-client
 npm install
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador para acceder al panel de control.
 
 ---
 
-## 🏛️ Project Directory Structure
+## 🏛️ Estructura del Directorio del Proyecto
 
-The repository is structured as a multi-module Maven project for the backend and a separate Next.js project for the frontend client:
+El repositorio está estructurado como un proyecto Maven multiproyecto para el backend y un proyecto Next.js independiente para el cliente del frontend:
 
-* [auth-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/auth-service) — Handles user authentication, security, and JWT generation (Port `8081`).
-* [banking-ingest-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/banking-ingest-service) — Exposes Webhook endpoints for PSD2/Open Banking data streams and CSV transaction sheets (Port `8082`).
-* [finance-profile-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/finance-profile-service) — Manages user financial accounts, wallets, and budget thresholds (Port `8083`).
-* [fraud-detection-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/fraud-detection-service) — Evaluation engine checking transaction velocity and amounts (Port `8084`).
-* [categorization-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/categorization-service) — Evaluates incoming merchants and maps them to expense categories (Port `8085`).
-* [fintrack-web-client](file:///C:/Users/Victor/IdeaProjects/FinTrack/fintrack-web-client) — Next.js 16+ React dashboard with real-time alerts and clean UI design system (Port `3000`).
+* [auth-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/auth-service) — Gestiona la autenticación de usuarios, seguridad y generación de JWT (Puerto `8081`).
+* [banking-ingest-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/banking-ingest-service) — Expone endpoints de Webhooks para flujos de datos PSD2/Open Banking e importaciones de transacciones mediante CSV (Puerto `8082`).
+* [finance-profile-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/finance-profile-service) — Administra cuentas financieras de usuario, carteras y límites presupuestarios (Puerto `8083`).
+* [fraud-detection-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/fraud-detection-service) — Evalúa transacciones de entrada según límites de importe y velocidad del perfil de usuario (Puerto `8084`).
+* [categorization-service](file:///C:/Users/Victor/IdeaProjects/FinTrack/categorization-service) — Clasifica los comercios de las transacciones entrantes y los mapea a categorías de gasto (Puerto `8085`).
+* [fintrack-web-client](file:///C:/Users/Victor/IdeaProjects/FinTrack/fintrack-web-client) — Panel de control React con Next.js 16+ con alertas en tiempo real y un sistema de diseño de interfaz limpio (Puerto `3000`).
 
 ---
 
-## 📚 Documentation & Guidelines
+## 📚 Documentación y Guías
 
-* **[ARCHITECTURE.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/ARCHITECTURE.md)** — Architectural design, system flows, Kafka schemas, database mapping, and observability.
-* **[CONTRIBUTING.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/CONTRIBUTING.md)** — Standards on how to write code, branching models, and testing strategies.
-* **[.agents/rules/](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/)** — AI agent configuration rules and governance:
-    * [ui_design_guide.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/ui_design_guide.md) — Mandatory UI Design System (colors, fonts, layout rules).
-    * [tech_stack.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/tech_stack.md) — Exact versions, ports, and parameters.
-    * [coding_guidelines.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/coding_guidelines.md) — Style guide for Java and Next.js.
-    * [summary_sdd_project.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/summary_sdd_project.md) — Resumen del proyecto y metodología SDD.
+* **[ARCHITECTURE.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/ARCHITECTURE.md)** — Diseño arquitectónico, flujos del sistema, esquemas de Kafka, mapeo de base de datos y observabilidad.
+* **[CONTRIBUTING.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/CONTRIBUTING.md)** — Estándares sobre cómo escribir código, modelos de ramificación de Git y estrategias de prueba.
+* **[.agents/rules/](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/)** — Reglas de configuración y gobernanza de agentes de IA:
+    * [ui_design_guide.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/ui_design_guide.md) — Sistema de Diseño UI Obligatorio (colores, fuentes y reglas de maquetación).
+    * [tech_stack.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/tech_stack.md) — Versiones exactas de dependencias, puertos y parámetros.
+    * [coding_guidelines.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/coding_guidelines.md) — Guía de estilo para Java y Next.js.
+    * [summary_sdd_project.md](file:///C:/Users/Victor/IdeaProjects/FinTrack/.agents/rules/summary_sdd_project.md) — Resumen de especificaciones del proyecto y metodología SDD.

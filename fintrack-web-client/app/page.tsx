@@ -546,7 +546,7 @@ export default function LandingPage() {
                   {col.links.map((l) => (
                     <li key={l}>
                       <Link
-                        href={l === "Acceso Usuarios" ? "/login" : l === "Panel" ? "/dashboard" : "#"}
+                        href={l === "Acceso Usuarios" ? "/login" : l === "Panel" ? "/dashboard" : l === "Subir extracto" ? "/dashboard" : "/register"}
                         className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {l}

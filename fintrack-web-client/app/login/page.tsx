@@ -191,8 +191,8 @@ export default function LoginPage() {
                 >
                   Contraseña
                 </label>
-                <a
-                  href="#"
+                <button
+                  type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     alert("Enlace de recuperación enviado al correo si la cuenta existe.");
@@ -200,7 +200,7 @@ export default function LoginPage() {
                   className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
-                </a>
+                </button>
               </div>
 
               <div className="relative">

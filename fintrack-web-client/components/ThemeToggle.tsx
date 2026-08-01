@@ -6,27 +6,28 @@ import { useEffect, useState } from "react";
  * Componente cliente interactivo para alternar el tema visual de la aplicación (Claro / Oscuro).
  * <p>
  * Detecta la preferencia del sistema operativo (`prefers-color-scheme`) y persiste
- * la selección del usuario en `localStorage`. Modifica las clases CSS del elemento `<html>`.
+ * la selección del usuario en `localStorage`. Utiliza un indicador de montaje (`mounted`)
+ * y `suppressHydrationWarning` para prevenir advertencias de discrepancia de hidratación en React/Next.js.
  * </p>
  *
  * @returns elemento JSX con el botón conmutador de tema de color
  */
 export default function ThemeToggle() {
+  const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const savedTheme = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initialDark = savedTheme ? savedTheme === "dark" : prefersDark;
 
-    queueMicrotask(() => {
-      setIsDark(initialDark);
-      if (initialDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    });
+    setIsDark(initialDark);
+    if (initialDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -42,12 +43,20 @@ export default function ThemeToggle() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="h-9 w-9 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" />
+    );
+  }
+
   return (
     <button
       id="theme-toggle-btn"
+      type="button"
       onClick={toggleTheme}
       aria-label="Cambiar tema de color"
       title={isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+      suppressHydrationWarning
       className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition"
     >
       {isDark ? (

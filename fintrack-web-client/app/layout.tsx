@@ -24,7 +24,7 @@ export const metadata: Metadata = {
  * Componente de diseño raíz (Root Layout) para Next.js App Router.
  * <p>
  * Inyecta las fuentes de Google Geist Sans y Geist Mono, los estilos globales CSS
- * y define el contenedor HTML estructurado para toda la aplicación.
+ * y define el contenedor HTML estructurado con {@code suppressHydrationWarning} para evitar advertencias de React.
  * </p>
  *
  * @param props propiedades del componente incluyendo nodos hijos {@link Readonly<{ children: React.ReactNode }>}
@@ -38,6 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+/**
+ * Componente cliente interactivo para alternar el tema visual de la aplicación (Claro / Oscuro).
+ * <p>
+ * Detecta la preferencia del sistema operativo (`prefers-color-scheme`) y persiste
+ * la selección del usuario en `localStorage`. Modifica las clases CSS del elemento `<html>`.
+ * </p>
+ *
+ * @returns elemento JSX con el botón conmutador de tema de color
+ */
 export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(false);
 

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 
+/**
+ * Interfaz para representar una categoría de presupuesto en la UI.
+ */
 interface BudgetCategory {
   id: string;
   name: string;
@@ -12,6 +15,9 @@ interface BudgetCategory {
   color: string;
 }
 
+/**
+ * Interfaz para representar una transacción bancaria en la lista del dashboard.
+ */
 interface Transaction {
   id: string;
   merchant: string;
@@ -21,6 +27,15 @@ interface Transaction {
   status: "CLEAN" | "SUSPICIOUS" | "PENDING";
 }
 
+/**
+ * Componente de vista principal para el panel de control del usuario (`/dashboard`).
+ * <p>
+ * Muestra el balance total disponible, banners de alerta en tiempo real del motor FraudShield,
+ * el listado interactivo de presupuestos por categoría y el feed de transacciones recientes.
+ * </p>
+ *
+ * @returns elemento JSX de la página de dashboard
+ */
 export default function DashboardPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -59,6 +74,9 @@ export default function DashboardPage() {
     });
   }, [router]);
 
+  /**
+   * Cierra la sesión activa borrando los tokens del localStorage y redirigiendo a la pantalla de login.
+   */
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userEmail");

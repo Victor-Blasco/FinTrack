@@ -6,6 +6,15 @@ import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, ShieldCheck, Zap } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
+/**
+ * Componente de vista principal para la página de registro de nuevos usuarios (`/register`).
+ * <p>
+ * Incluye validación de contraseñas coincidentes, medidor de fuerza de clave,
+ * botones de acceso SSO y notificación de estado de creación de cuenta.
+ * </p>
+ *
+ * @returns elemento JSX de la página de registro
+ */
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +26,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Simple password strength calculation adhering to clean fintech UX
+  /**
+   * Calcula la fortaleza de la contraseña en función de longitud y variedad de caracteres.
+   *
+   * @param pass contraseña a evaluar
+   * @returns objeto con puntuación, etiqueta descriptiva y clases de color Tailwind CSS
+   */
   const getPasswordStrength = (pass: string) => {
     if (!pass) return { score: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
     let score = 0;
@@ -34,6 +48,11 @@ export default function RegisterPage() {
   const strength = getPasswordStrength(password);
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
 
+  /**
+   * Maneja el registro de nuevo usuario enviando la solicitud al endpoint `/api/v1/auth/register`.
+   *
+   * @param e evento de envío del formulario {@link React.FormEvent}
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -77,7 +96,7 @@ export default function RegisterPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between bg-[#F8FAFC] dark:bg-[#12151E] text-slate-800 dark:text-slate-100 font-sans px-4 py-6 sm:py-10">
-      {/* Background Decorative Ambient (Conforming to UI guide: subtle, dark Slate tones) */}
+      {/* Background Decorative Ambient */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-96 w-full max-w-4xl rounded-full bg-blue-600/5 dark:bg-blue-500/10 blur-3xl" />
 
       {/* Top Header Bar */}

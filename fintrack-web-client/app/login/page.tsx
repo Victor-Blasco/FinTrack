@@ -6,6 +6,16 @@ import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck, Zap } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
+/**
+ * Componente de vista principal para la página de inicio de sesión (`/login`).
+ * <p>
+ * Implementa una interfaz limpia centrada con soporte para alternar la visibilidad
+ * de la contraseña, botones SSO (Google, GitHub), tratamiento de errores de autenticación
+ * y redirección al dashboard tras la verificación del token JWT.
+ * </p>
+ *
+ * @returns elemento JSX de la página de inicio de sesión
+ */
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,6 +24,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  /**
+   * Maneja la autenticación del formulario enviando las credenciales al endpoint del BFF Gateway.
+   *
+   * @param e evento de envío del formulario {@link React.FormEvent}
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -44,7 +59,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col justify-between bg-[#F8FAFC] dark:bg-[#12151E] text-slate-800 dark:text-slate-100 font-sans px-4 py-6 sm:py-10">
-      {/* Background Decorative Ambient (Conforming to UI guide: subtle, dark Slate tones) */}
+      {/* Background Decorative Ambient */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-96 w-full max-w-4xl rounded-full bg-blue-600/5 dark:bg-blue-500/10 blur-3xl" />
 
       {/* Top Header Bar */}

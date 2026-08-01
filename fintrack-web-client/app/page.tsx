@@ -17,6 +17,16 @@ import {
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
+/**
+ * Componente de vista principal para la Landing Page pública de FinTrack.
+ * <p>
+ * Muestra el Hero de presentación, métricas destacadas de rendimiento,
+ * vista previa del panel de control y resumen de arquitectura de seguridad.
+ * </p>
+ *
+ * @returns elemento JSX de la landing page pública
+ */
+
 const metrics = [
   { value: "Al instante", label: "Alertas de cargos anómalos", highlight: "text-blue-600 dark:text-blue-400" },
   { value: "6", label: "Categorías automáticas", highlight: "text-emerald-600 dark:text-emerald-400" },

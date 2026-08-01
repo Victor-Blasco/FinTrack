@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+/**
+ * Middleware de la API Gateway / Backend-For-Frontend (BFF) en Next.js.
+ * <p>
+ * Se encarga de interceptar y enrutar las peticiones entrantes bajo `/api/v1/`:
+ * 1. Redirecciona las rutas de autenticación pública (`/register`, `/login`) hacia `auth-service` (Puerto 8081).
+ * 2. Valida los tokens Bearer JWT de los endpoints protegidos consultando a `auth-service`.
+ * 3. Inyecta la cabecera `X-User-Id` con la identidad verificada del usuario.
+ * 4. Realiza la reescritura de proxy inverso (Reverse Proxy) hacia los microservicios destino:
+ *    - `/api/v1/accounts` y `/api/v1/budgets` -> `finance-profile-service` (Puerto 8083).
+ *    - `/api/v1/ingest` -> `banking-ingest-service` (Puerto 8082).
+ * </p>
+ *
+ * @param request petición HTTP entrante {@link NextRequest}
+ * @returns {@link NextResponse} con reescritura de proxy, respuesta JSON de error 401/500 o paso directo
+ */
 export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone()
   const { pathname } = url
@@ -83,7 +98,9 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Interceptar todas las rutas de API
+/**
+ * Configuración de patrones de ruta coincidentes para activar el middleware.
+ */
 export const config = {
   matcher: ['/api/v1/:path*'],
 }

@@ -2,16 +2,31 @@
 
 import { ShieldCheck, Zap, Lock, CheckCircle2 } from "lucide-react";
 
+/**
+ * Propiedades para el componente AuthHeroPanel.
+ *
+ * @property mode modo de presentación del panel ('login' o 'register')
+ */
 interface AuthHeroPanelProps {
   mode: "login" | "register";
 }
 
+/**
+ * Componente visual de presentación lateral para páginas de autenticación.
+ * <p>
+ * Muestra el branding de FinTrack, el badge del motor de seguridad FraudShield
+ * y métricas destacadas siguiendo la guía de diseño visual (.agents/rules/ui_design_guide.md).
+ * </p>
+ *
+ * @param props propiedades del componente {@link AuthHeroPanelProps}
+ * @returns elemento JSX del panel lateral informativo
+ */
 export default function AuthHeroPanel({ mode }: AuthHeroPanelProps) {
   const isLogin = mode === "login";
 
   return (
     <div className="relative flex h-full flex-col justify-between overflow-hidden bg-slate-900 text-slate-100 p-8 lg:p-12 border-r border-slate-800">
-      {/* Subtle Background Glow conforming to UI rules (no bright neon, subtle radial dark background) */}
+      {/* Subtle Background Glow conforming to UI rules */}
       <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-emerald-600/10 blur-3xl" />
 
@@ -37,8 +52,7 @@ export default function AuthHeroPanel({ mode }: AuthHeroPanelProps) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="num font-semibold text-emerald-400">&lt;50ms</span>
-          <span className="text-slate-400 font-normal">Kafka EDA</span>
+          <span className="num font-semibold text-emerald-400">Protección Activa</span>
         </div>
       </div>
 

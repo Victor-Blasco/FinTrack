@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,8 +17,8 @@ import java.util.Map;
 /**
  * Configuración del productor de Apache Kafka para la ingesta de transacciones.
  * <p>
- * Instancia la plantilla {@link KafkaTemplate} tipada para {@link RawTransactionEvent}
- * garantizando la presencia del bean de Spring necesario al arrancar el microservicio.
+ * Utiliza {@link JacksonJsonSerializer} (el serializador oficial no deprecado de Spring Kafka 4.x)
+ * para publicar eventos {@link RawTransactionEvent} tipados hacia el tópico raw-transactions.
  * </p>
  *
  * @author Victor Blasco
@@ -30,18 +30,16 @@ public class KafkaProducerConfig {
     private String bootstrapServers;
 
     /**
-     * Define la fábrica de productores de Kafka para eventos de transacciones.
+     * Define la fábrica de productores de Kafka utilizando {@link JacksonJsonSerializer}.
      *
-     * @return {@link ProducerFactory} configurada para serializar la clave como {@String} y el valor como JSON
+     * @return {@link ProducerFactory} tipada para {@link RawTransactionEvent}
      */
     @Bean
-    @SuppressWarnings("deprecation")
     public ProducerFactory<String, RawTransactionEvent> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
 
         return new DefaultKafkaProducerFactory<>(configProps);
     }

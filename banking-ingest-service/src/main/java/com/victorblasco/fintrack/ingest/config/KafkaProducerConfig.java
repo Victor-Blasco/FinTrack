@@ -15,9 +15,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuración del productor de Apache Kafka.
- * Define los beans de fábrica de productores y plantilla de Kafka (KafkaTemplate)
- * fuertemente tipados para eventos {@link RawTransactionEvent}.
+ * Configuración del productor de Apache Kafka para la ingesta de transacciones.
+ * <p>
+ * Instancia la plantilla {@link KafkaTemplate} tipada para {@link RawTransactionEvent}
+ * garantizando la presencia del bean de Spring necesario al arrancar el microservicio.
+ * </p>
  *
  * @author Victor Blasco
  */
@@ -28,23 +30,26 @@ public class KafkaProducerConfig {
     private String bootstrapServers;
 
     /**
-     * Define la fábrica de productores de Kafka.
+     * Define la fábrica de productores de Kafka para eventos de transacciones.
      *
-     * @return fábrica de productores configurada con serializadores de clave String y valor JSON
+     * @return {@link ProducerFactory} configurada para serializar la clave como {@String} y el valor como JSON
      */
     @Bean
+    @SuppressWarnings("deprecation")
     public ProducerFactory<String, RawTransactionEvent> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
     /**
-     * Define la plantilla de Kafka para el envío de eventos.
+     * Define la plantilla de Kafka para el envío de eventos de transacciones sin procesar.
      *
-     * @return plantilla de Kafka tipada para {@link RawTransactionEvent}
+     * @return {@link KafkaTemplate} tipada para {@link RawTransactionEvent}
      */
     @Bean
     public KafkaTemplate<String, RawTransactionEvent> kafkaTemplate() {

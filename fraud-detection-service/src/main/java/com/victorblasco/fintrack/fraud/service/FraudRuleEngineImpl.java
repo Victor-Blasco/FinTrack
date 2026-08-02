@@ -30,7 +30,23 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
     private static final int RISK_THRESHOLD = 50;
 
     private static final Set<String> HIGH_RISK_KEYWORDS = Set.of(
-            "CASINO", "BETTING", "CRYPTO", "BINANCE", "OVERSEAS", "ATM_UNKNOWN", "APUESTAS"
+            // Casas de Apuestas y Juegos de Azar
+            "CASINO", "BETTING", "APUESTAS", "POKER", "LOTERIA", "GAMBLING", "SLOTS",
+            "BWIN", "BET365", "POKERSTARS", "888SPORT", "CODERE", "LUCKIA", "SPORTIUM", "JACKPOT",
+            
+            // Criptomonedas y Exchanges de Criptoactivos
+            "CRYPTO", "BINANCE", "COINBASE", "KRAKEN", "BITCOIN", "BYBIT", "KUCOIN",
+            "OKX", "BITPANDA", "BITGET", "GATE.IO", "METAMASK", "OPENSEA", "PAXFUL",
+            
+            // Remesas Internacionales y Envíos de Dinero / Tarjetas Prepago
+            "OVERSEAS", "WESTERN_UNION", "MONEYGRAM", "OFFSHORE", "TRANSFER_ANONYMOUS", "PAYPAL_GIFT",
+            "RIA_MONEY", "REMITLY", "WORLDREMIT", "PAYSAFECARD", "STEAM_CARD", "GIFT_CARD_RELOAD",
+            
+            // Retiradas de Efectivo Anómalas
+            "ATM_UNKNOWN", "ATM_FOREIGN", "ATM_OFFSHORE", "CASH_ADVANCE", "CASH_DISPENSER",
+            
+            // Entidades No Verificadas, Servidores de Anonimato y Darkweb
+            "DARKWEB", "UNVERIFIED_MERCHANT", "LUXURY_DUTY_FREE", "TOR_NODE", "VPN_ANONYMOUS", "MIXER", "TUMBLER"
     );
 
     /**

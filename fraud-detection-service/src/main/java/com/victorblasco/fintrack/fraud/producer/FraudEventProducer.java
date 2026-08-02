@@ -51,7 +51,7 @@ public class FraudEventProducer {
      * @param event evento de alerta {@link FraudAlertEvent}
      */
     public void sendAlert(FraudAlertEvent event) {
-        log.warn("🚨 ALERTA SEGURIDAD: Publicando alerta prioritaria para transacción [{}] del usuario [{}]",
+        log.warn("ALERTA SEGURIDAD: Publicando alerta prioritaria para transacción [{}] del usuario [{}]",
                 event.transactionId(), event.userId());
         alertKafkaTemplate.send(TOPIC_ALERTS, event.userId().toString(), event);
     }

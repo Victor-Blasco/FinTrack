@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: categorization-service
+  threads:
+    virtual:
+      enabled: true
   kafka:
     bootstrap-servers: localhost:9092
     consumer:

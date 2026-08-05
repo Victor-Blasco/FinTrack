@@ -4,6 +4,7 @@ import com.victorblasco.fintrack.profile.dto.BudgetResponse;
 import com.victorblasco.fintrack.profile.dto.CreateBudgetRequest;
 import com.victorblasco.fintrack.profile.service.BudgetService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,16 +37,16 @@ public class BudgetController {
      *
      * @param request DTO {@link CreateBudgetRequest} con la categoría y el límite asignado
      * @param userIdQueryParam identificador del usuario en query param
-     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @param authHeader cabecera HTTP opcional Authorization
      * @return respuesta HTTP 201 Created con el {@link BudgetResponse}
      */
     @PostMapping
     public ResponseEntity<BudgetResponse> createBudget(
             @Valid @RequestBody CreateBudgetRequest request,
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
-            @RequestHeader(name = "X-User-Id", required = false) String userIdHeader
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, userIdHeader);
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
         BudgetResponse response = budgetService.createOrUpdateBudget(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -54,15 +55,15 @@ public class BudgetController {
      * Obtiene la lista de presupuestos activos y sus porcentajes de consumo para el usuario.
      *
      * @param userIdQueryParam identificador del usuario en query param
-     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @param authHeader cabecera HTTP opcional Authorization
      * @return respuesta HTTP 200 OK con la lista de {@link BudgetResponse}
      */
     @GetMapping
     public ResponseEntity<List<BudgetResponse>> getUserBudgets(
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
-            @RequestHeader(name = "X-User-Id", required = false) String userIdHeader
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, userIdHeader);
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
         List<BudgetResponse> budgets = budgetService.getUserBudgets(userId);
         return ResponseEntity.ok(budgets);
     }
@@ -71,10 +72,9 @@ public class BudgetController {
      * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
      *
      * @param queryParam UUID en la URL
-     * @param header cabecera HTTP X-User-Id
+     * @param header cabecera HTTP Authorization
      * @return UUID del usuario resuelto
      */
-    //TODO: CAMBIAR EN PRODUCCIÓN A SOLO CABECERA
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

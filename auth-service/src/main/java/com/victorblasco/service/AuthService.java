@@ -118,6 +118,10 @@ public class AuthService {
         try {
             Jwt jwt = jwtDecoder.decode(token);
             String userIdStr = jwt.getSubject();
+            if (userIdStr == null || userIdStr.isBlank()) {
+                log.warn("Token de acceso rechazado: el campo 'subject' del JWT es nulo o está vacío");
+                throw new InvalidTokenException("Token inválido o expirado");
+            }
             UUID userId = UUID.fromString(userIdStr);
             return new ValidateResponse(true, userId);
         } catch (JwtException | IllegalArgumentException e) {

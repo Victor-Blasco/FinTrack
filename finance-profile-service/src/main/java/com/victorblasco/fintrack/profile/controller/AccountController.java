@@ -2,6 +2,7 @@ package com.victorblasco.fintrack.profile.controller;
 
 import com.victorblasco.fintrack.profile.dto.AccountSummaryResponse;
 import com.victorblasco.fintrack.profile.service.LedgerService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,15 +36,15 @@ public class AccountController {
      * Obtiene el resumen de la cuenta bancaria y saldo consolidado del usuario.
      *
      * @param userIdQueryParam identificador del usuario pasado opcionalmente como query param
-     * @param userIdHeader identificador del usuario pasado opcionalmente en la cabecera X-User-Id
+     * @param authHeader cabecera HTTP estándar de autorización u opcional
      * @return respuesta HTTP 200 OK con {@link AccountSummaryResponse}
      */
     @GetMapping("/summary")
     public ResponseEntity<AccountSummaryResponse> getAccountSummary(
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
-            @RequestHeader(name = "X-User-Id", required = false) String userIdHeader
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, userIdHeader);
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
         AccountSummaryResponse response = ledgerService.getAccountSummary(userId);
         return ResponseEntity.ok(response);
     }
@@ -52,7 +53,7 @@ public class AccountController {
      * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
      *
      * @param queryParam UUID en la URL
-     * @param header cabecera HTTP X-User-Id
+     * @param header cabecera HTTP Authorization
      * @return UUID del usuario resuelto
      */
     private UUID resolveUserId(UUID queryParam, String header) {

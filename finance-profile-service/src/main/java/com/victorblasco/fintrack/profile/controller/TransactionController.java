@@ -2,6 +2,7 @@ package com.victorblasco.fintrack.profile.controller;
 
 import com.victorblasco.fintrack.profile.dto.TransactionResponse;
 import com.victorblasco.fintrack.profile.service.LedgerService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,15 +33,15 @@ public class TransactionController {
      * Obtiene la lista de movimientos financieros registrados para el usuario.
      *
      * @param userIdQueryParam identificador del usuario en query param
-     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @param authHeader cabecera HTTP opcional Authorization
      * @return respuesta HTTP 200 OK con la lista de {@link TransactionResponse}
      */
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
-            @RequestHeader(name = "X-User-Id", required = false) String userIdHeader
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, userIdHeader);
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
         List<TransactionResponse> transactions = ledgerService.getUserTransactions(userId);
         return ResponseEntity.ok(transactions);
     }
@@ -49,7 +50,7 @@ public class TransactionController {
      * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
      *
      * @param queryParam UUID en la URL
-     * @param header cabecera HTTP X-User-Id
+     * @param header cabecera HTTP Authorization
      * @return UUID del usuario resuelto
      */
     private UUID resolveUserId(UUID queryParam, String header) {

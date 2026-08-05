@@ -1,5 +1,7 @@
 package com.victorblasco.fintrack.fraud.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.victorblasco.fintrack.fraud.domain.FraudEvaluationResult;
 import com.victorblasco.fintrack.fraud.domain.FraudReason;
 import com.victorblasco.fintrack.fraud.domain.Verdict;
@@ -11,14 +13,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Implementación del motor de puntuación de riesgo (Fraud Risk Score) en tiempo real.
+ * Implementación de alto rendimiento del motor de puntuación de riesgo (Fraud Risk Score) en tiempo real.
  * <p>
- * Mantiene una caché deslizante concurrente en memoria para rastrear la frecuencia de transacciones
- * por usuario en ventanas de 60 segundos y evalúa factores de riesgo contextuales (importe,
- * horario nocturno, reputación del comercio) para emitir un veredicto en {@code <50ms}.
+ * Emplea una caché delimitada de auto-evicción (Caffeine Cache) para rastrear la frecuencia de transacciones
+ * por usuario en ventanas de 60 segundos con consumo de memoria acotado $O(1)$ y evalúa factores de riesgo
+ * contextuales sin asignación innecesaria de objetos en la ruta crítica de ejecución.
  * </p>
  */
 @Service
@@ -33,26 +35,29 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
             // Casas de Apuestas y Juegos de Azar
             "CASINO", "BETTING", "APUESTAS", "POKER", "LOTERIA", "GAMBLING", "SLOTS",
             "BWIN", "BET365", "POKERSTARS", "888SPORT", "CODERE", "LUCKIA", "SPORTIUM", "JACKPOT",
-            
+
             // Criptomonedas y Exchanges de Criptoactivos
             "CRYPTO", "BINANCE", "COINBASE", "KRAKEN", "BITCOIN", "BYBIT", "KUCOIN",
             "OKX", "BITPANDA", "BITGET", "GATE.IO", "METAMASK", "OPENSEA", "PAXFUL",
-            
+
             // Remesas Internacionales y Envíos de Dinero / Tarjetas Prepago
             "OVERSEAS", "WESTERN_UNION", "MONEYGRAM", "OFFSHORE", "TRANSFER_ANONYMOUS", "PAYPAL_GIFT",
             "RIA_MONEY", "REMITLY", "WORLDREMIT", "PAYSAFECARD", "STEAM_CARD", "GIFT_CARD_RELOAD",
-            
+
             // Retiradas de Efectivo Anómalas
             "ATM_UNKNOWN", "ATM_FOREIGN", "ATM_OFFSHORE", "CASH_ADVANCE", "CASH_DISPENSER",
-            
+
             // Entidades No Verificadas, Servidores de Anonimato y Darkweb
             "DARKWEB", "UNVERIFIED_MERCHANT", "LUXURY_DUTY_FREE", "TOR_NODE", "VPN_ANONYMOUS", "MIXER", "TUMBLER"
     );
 
     /**
-     * Caché concurrente en memoria: userId -> Cola de marcas de tiempo de las transacciones recibidas.
+     * Caché delimitada de auto-evicción con TTL de 60 segundos post-acceso para prevenir fugas de memoria (OOM).
      */
-    private final Map<UUID, Deque<Instant>> userFrequencyCache = new ConcurrentHashMap<>();
+    private final Cache<UUID, Deque<Instant>> userFrequencyCache = Caffeine.newBuilder()
+            .expireAfterAccess(60, TimeUnit.SECONDS)
+            .maximumSize(100_000)
+            .build();
 
     /**
      * Evalúa la transacción bancaria y determina el veredicto en función de la puntuación acumulada.
@@ -65,17 +70,17 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
         int riskScore = 0;
         List<FraudReason> reasons = new ArrayList<>();
 
-        Instant now = event.timestamp() != null 
-                ? event.timestamp().toInstant(ZoneOffset.UTC) 
+        Instant now = event.timestamp() != null
+                ? event.timestamp().toInstant(ZoneOffset.UTC)
                 : Instant.now();
 
-        // 1. Evaluación de Alta Frecuencia (Ventana deslizante de 60 segundos)
+        // 1. Evaluación de Alta Frecuencia (Ventana deslizante de 60 segundos con evicción automática)
         if (checkHighFrequency(event.userId(), now)) {
             riskScore += 50;
             reasons.add(FraudReason.HIGH_FREQUENCY_RULE);
         }
 
-        // 2. Evaluación de Comercio de Alto Riesgo
+        // 2. Evaluación de Comercio de Alto Riesgo (Bucle directo sin asignación de Stream)
         if (isHighRiskMerchant(event.merchant())) {
             riskScore += 40;
             reasons.add(FraudReason.HIGH_RISK_MERCHANT);
@@ -101,7 +106,7 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
      * Verifica la ventana deslizante de frecuencia para un usuario en los últimos 60 segundos.
      */
     private boolean checkHighFrequency(UUID userId, Instant eventInstant) {
-        Deque<Instant> timestamps = userFrequencyCache.computeIfAbsent(userId, k -> new ArrayDeque<>());
+        Deque<Instant> timestamps = userFrequencyCache.get(userId, k -> new ArrayDeque<>());
         synchronized (timestamps) {
             Instant cutoff = eventInstant.minusSeconds(FREQUENCY_WINDOW_SECONDS);
             while (!timestamps.isEmpty() && timestamps.peekFirst().isBefore(cutoff)) {
@@ -114,13 +119,21 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
 
     /**
      * Comprueba si el nombre del comercio contiene palabras clave asociadas a actividades de alto riesgo.
+     * <p>
+     * Evaluado mediante un bucle directo para evitar asignaciones de iteradores y streams en el Heap.
+     * </p>
      */
     private boolean isHighRiskMerchant(String merchant) {
         if (merchant == null || merchant.isBlank()) {
             return false;
         }
         String upperMerchant = merchant.toUpperCase(Locale.ROOT);
-        return HIGH_RISK_KEYWORDS.stream().anyMatch(upperMerchant::contains);
+        for (String keyword : HIGH_RISK_KEYWORDS) {
+            if (upperMerchant.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -29,8 +30,8 @@ import java.util.UUID;
 /**
  * Servicio de negocio encargado de la ingesta masiva de extractos bancarios en formato CSV.
  * <p>
- * Incluye cálculo de resumen SHA-256 para deduplicación estricta, respuesta rápida de procesamiento
- * asíncrono y parseo en streaming línea a línea auditando filas corruptas.
+ * Incluye cálculo de resumen SHA-256 en modo streaming para deduplicación estricta sin picos de RAM,
+ * respuesta rápida de procesamiento asíncrono y parseo línea a línea auditando filas corruptas.
  * </p>
  *
  * @author Victor Blasco
@@ -39,6 +40,7 @@ import java.util.UUID;
 public class CsvIngestService {
 
     private static final Logger log = LoggerFactory.getLogger(CsvIngestService.class);
+    private static final int BUFFER_SIZE = 8192;
 
     private final CsvUploadRepository csvUploadRepository;
     private final CsvBatchAuditRepository csvBatchAuditRepository;
@@ -64,7 +66,7 @@ public class CsvIngestService {
     /**
      * Procesa la solicitud inicial de subida de un archivo CSV.
      * <p>
-     * Calcula el resumen SHA-256 del contenido. Si el resumen ya existe en la base de datos,
+     * Calcula el resumen SHA-256 del contenido en streaming. Si el resumen ya existe en la base de datos,
      * lanza {@link DuplicateCsvException}. En caso contrario, registra la subida y programa
      * el análisis asíncrono.
      * </p>
@@ -164,18 +166,23 @@ public class CsvIngestService {
     }
 
     /**
-     * Calcula el hash SHA-256 del contenido completo de un archivo MultipartFile.
+     * Calcula el hash SHA-256 del contenido de un archivo MultipartFile procesando los bytes en streaming.
      *
      * @param file archivo del cual calcular el hash
      * @return cadena de texto hexadecimal con el hash SHA-256
      */
     private String computeSha256Hash(MultipartFile file) {
-        try {
+        try (InputStream inputStream = file.getInputStream()) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(file.getBytes());
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                digest.update(buffer, 0, bytesRead);
+            }
+            byte[] hashBytes = digest.digest();
             return HexFormat.of().formatHex(hashBytes);
         } catch (Exception e) {
-            throw new IllegalStateException("Error al calcular el hash SHA-256 del archivo CSV", e);
+            throw new IllegalStateException("Error al calcular el hash SHA-256 del archivo CSV en streaming", e);
         }
     }
 }

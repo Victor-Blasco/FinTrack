@@ -8,7 +8,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Componente productor encendido para publicar veredictos y alertas de fraude a Apache Kafka.
+ * Componente productor encargado de publicar veredictos y alertas de fraude a Apache Kafka.
+ * <p>
+ * Incluye gestión de callbacks asíncronos para garantizar la trazabilidad del envío.
+ * </p>
  */
 @Component
 public class FraudEventProducer {
@@ -22,7 +25,7 @@ public class FraudEventProducer {
     private final KafkaTemplate<String, FraudAlertEvent> alertKafkaTemplate;
 
     /**
-     * Constructor con inyección de dependencias para los plantillas de Kafka.
+     * Constructor con inyección de dependencias para las plantillas de Kafka.
      *
      * @param verdictKafkaTemplate plantilla Kafka para veredictos {@link KafkaTemplate}
      * @param alertKafkaTemplate plantilla Kafka para alertas {@link KafkaTemplate}
@@ -42,7 +45,14 @@ public class FraudEventProducer {
     public void sendVerdict(FraudVerdictEvent event) {
         log.info("Publicando veredicto de fraude [{}] para transacción [{}] del usuario [{}]",
                 event.verdict(), event.transactionId(), event.userId());
-        verdictKafkaTemplate.send(TOPIC_VERDICTS, event.transactionId().toString(), event);
+        verdictKafkaTemplate.send(TOPIC_VERDICTS, event.transactionId().toString(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Error al publicar veredicto de fraude para transacción [{}]: {}", event.transactionId(), ex.getMessage());
+                    } else {
+                        log.debug("Veredicto de fraude publicado correctamente en offset={}", result.getRecordMetadata().offset());
+                    }
+                });
     }
 
     /**
@@ -53,6 +63,13 @@ public class FraudEventProducer {
     public void sendAlert(FraudAlertEvent event) {
         log.warn("ALERTA SEGURIDAD: Publicando alerta prioritaria para transacción [{}] del usuario [{}]",
                 event.transactionId(), event.userId());
-        alertKafkaTemplate.send(TOPIC_ALERTS, event.userId().toString(), event);
+        alertKafkaTemplate.send(TOPIC_ALERTS, event.userId().toString(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("CRÍTICO: Error al publicar alerta de fraude para transacción [{}]: {}", event.transactionId(), ex.getMessage());
+                    } else {
+                        log.debug("Alerta de fraude publicada correctamente en offset={}", result.getRecordMetadata().offset());
+                    }
+                });
     }
 }

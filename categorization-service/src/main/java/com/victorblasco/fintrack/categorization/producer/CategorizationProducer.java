@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 /**
  * Componente productor responsable de publicar eventos {@link TransactionCategorizedEvent}
  * al topic Kafka {@code categorized-events}.
+ * <p>
+ * Incluye gestión de callbacks asíncronos para auditar la entrega de mensajes.
+ * </p>
  */
 @Component
 public class CategorizationProducer {
@@ -35,6 +38,12 @@ public class CategorizationProducer {
     public void sendCategorizedEvent(TransactionCategorizedEvent event) {
         String key = event.transactionId().toString();
         log.info("Publicando evento categorizado para transacción [{}] con categoría [{}]", key, event.category());
-        kafkaTemplate.send(TOPIC, key, event);
+        kafkaTemplate.send(TOPIC, key, event).whenComplete((result, ex) -> {
+            if (ex != null) {
+                log.error("Error al publicar evento categorizado para transacción [{}]: {}", key, ex.getMessage());
+            } else {
+                log.debug("Evento categorizado publicado correctamente en offset={}", result.getRecordMetadata().offset());
+            }
+        });
     }
 }

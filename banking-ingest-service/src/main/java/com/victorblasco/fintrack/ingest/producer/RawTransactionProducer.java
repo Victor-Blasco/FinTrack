@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Productor de eventos de Apache Kafka para publicar transacciones sin procesar al tópico raw-transactions.
+ * <p>
+ * Incluye gestión de callbacks asíncronos para auditar la entrega de mensajes y gestionar posibles errores de red.
+ * </p>
  *
  * @author Victor Blasco
  */
@@ -41,6 +44,12 @@ public class RawTransactionProducer {
      */
     public void send(RawTransactionEvent event) {
         log.info("Publicando evento raw-transaction para transactionId={}", event.transactionId());
-        kafkaTemplate.send(topicName, event.transactionId(), event);
+        kafkaTemplate.send(topicName, event.transactionId(), event).whenComplete((result, ex) -> {
+            if (ex != null) {
+                log.error("Fallo al publicar evento raw-transaction para transactionId={}: {}", event.transactionId(), ex.getMessage());
+            } else {
+                log.debug("Evento raw-transaction publicado exitosamente en offset={}", result.getRecordMetadata().offset());
+            }
+        });
     }
 }

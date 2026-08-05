@@ -20,6 +20,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
 jwt:
   secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktc2VjdXJlLXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLXF1YW50dW0tZnJhdWQtc2hpZWxk}
   expiration-hours: 24

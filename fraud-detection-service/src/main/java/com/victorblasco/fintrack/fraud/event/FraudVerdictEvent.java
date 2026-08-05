@@ -11,6 +11,7 @@ import java.util.UUID;
  *
  * @param transactionId identificador de la transacción evaluada
  * @param userId identificador del usuario
+ * @param merchant nombre/identificador del comercio
  * @param verdict veredicto resultante (CLEAN o SUSPICIOUS)
  * @param reasons lista de razones de riesgo detectadas
  * @param evaluatedAt marca de tiempo de la evaluación
@@ -18,6 +19,7 @@ import java.util.UUID;
 public record FraudVerdictEvent(
         UUID transactionId,
         UUID userId,
+        String merchant,
         Verdict verdict,
         List<String> reasons,
         LocalDateTime evaluatedAt

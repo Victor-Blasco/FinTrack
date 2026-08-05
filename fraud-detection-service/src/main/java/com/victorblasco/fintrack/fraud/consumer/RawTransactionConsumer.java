@@ -61,6 +61,7 @@ public class RawTransactionConsumer {
         FraudVerdictEvent verdictEvent = new FraudVerdictEvent(
                 event.transactionId(),
                 event.userId(),
+                event.merchant(),
                 result.verdict(),
                 reasonStrings,
                 LocalDateTime.now()

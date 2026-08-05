@@ -38,4 +38,6 @@ build/
 # Agent & MCP configurations
 .agents/
 .playwright-mcp/
-
+# Qodana Analysis Reports
+qodana.sarif.json
+.qodana/

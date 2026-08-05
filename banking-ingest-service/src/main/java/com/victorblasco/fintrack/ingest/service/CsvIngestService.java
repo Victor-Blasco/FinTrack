@@ -124,7 +124,7 @@ public class CsvIngestService {
                      .setHeader()
                      .setSkipHeaderRecord(true)
                      .setIgnoreSurroundingSpaces(true)
-                     .build()
+                     .get()
                      .parse(reader)) {
 
             int rowNumber = 1;

@@ -24,14 +24,17 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Servicio de negocio encargado de la ingesta masiva de extractos bancarios en formato CSV.
  * <p>
  * Incluye cálculo de resumen SHA-256 en modo streaming para deduplicación estricta sin picos de RAM,
- * respuesta rápida de procesamiento asíncrono y parseo línea a línea auditando filas corruptas.
+ * respuesta rápida de procesamiento asíncrono, inserción en lotes de auditoría de errores
+ * y parseo línea a línea auditando filas corruptas.
  * </p>
  *
  * @author Victor Blasco
@@ -104,7 +107,7 @@ public class CsvIngestService {
      * Lee y analiza asíncronamente el archivo CSV línea a línea en streaming.
      * <p>
      * Por cada fila válida, publica un evento {@link RawTransactionEvent} en Kafka.
-     * Si una fila está malformada, guarda un registro en {@link CsvBatchAudit} y continúa con las demás filas.
+     * Si una fila está malformada, acumula el registro de error e inserta los fallos en lote al finalizar.
      * </p>
      *
      * @param file archivo multipart CSV
@@ -113,6 +116,7 @@ public class CsvIngestService {
     @Async
     public void parseAndStreamCsv(MultipartFile file, UUID batchId) {
         log.info("Iniciando análisis asíncrono de lotes CSV para batchId={}", batchId);
+        List<CsvBatchAudit> auditList = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
              CSVParser csvParser = CSVFormat.DEFAULT
@@ -155,8 +159,13 @@ public class CsvIngestService {
                             record.toList().toString(),
                             Instant.now()
                     );
-                    csvBatchAuditRepository.save(audit);
+                    auditList.add(audit);
                 }
+            }
+
+            if (!auditList.isEmpty()) {
+                csvBatchAuditRepository.saveAll(auditList);
+                log.info("Guardados en lote {} registros de auditoría de errores para batchId={}", auditList.size(), batchId);
             }
 
             log.info("Lote CSV batchId={} procesado completamente", batchId);

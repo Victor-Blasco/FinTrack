@@ -87,6 +87,6 @@ class CsvIngestServiceTest {
         csvIngestService.parseAndStreamCsv(file, java.util.UUID.randomUUID());
 
         verify(rawTransactionProducer, times(2)).send(any(RawTransactionEvent.class));
-        verify(csvBatchAuditRepository, times(1)).save(any());
+        verify(csvBatchAuditRepository, times(1)).saveAll(anyList());
     }
 }

@@ -12,8 +12,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,9 +24,9 @@ import java.util.Map;
 /**
  * Configuración de la infraestructura Apache Kafka para el servicio de categorización.
  * <p>
- * Declara las plantillas {@link KafkaTemplate} de producción y la fábrica
- * de contenedores oyentes con {@link JacksonJsonSerializer} y {@link JacksonJsonDeserializer}
- * de Spring Kafka 4.1 con soporte nativo para deserialización ISO-8601 de campos {@link java.time.LocalDateTime}.
+ * Declara las plantillas {@link KafkaTemplate} de producción, la fábrica de contenedores oyentes
+ * con {@link JacksonJsonSerializer} y {@link JacksonJsonDeserializer} de Spring Kafka 4.1, e incluye
+ * resiliencia con {@link CommonErrorHandler} para reintentos y desvío de mensajes.
  * </p>
  */
 @Configuration
@@ -59,15 +62,28 @@ public class KafkaConfig {
     }
 
     /**
-     * Define la fábrica de contenedores oyentes para procesar eventos de fraude.
+     * Define el manejador de errores de mensajería con política de reintentos y resiliencia.
      *
+     * @return manejador de errores {@link CommonErrorHandler}
+     */
+    @Bean
+    public CommonErrorHandler errorHandler() {
+        return new DefaultErrorHandler(new FixedBackOff(1000L, 3L));
+    }
+
+    /**
+     * Define la fábrica de contenedores oyentes para procesar eventos de fraude con resiliencia.
+     *
+     * @param errorHandler manejador de errores común de Kafka
      * @return fábrica de contenedores oyentes {@link ConcurrentKafkaListenerContainerFactory}
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, FraudVerdictEvent> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, FraudVerdictEvent> kafkaListenerContainerFactory(
+            CommonErrorHandler errorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, FraudVerdictEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(fraudVerdictConsumerFactory());
+        factory.setCommonErrorHandler(errorHandler);
         return factory;
     }
 

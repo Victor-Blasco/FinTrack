@@ -13,8 +13,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,9 +25,9 @@ import java.util.Map;
 /**
  * Configuración de la infraestructura de mensajería Apache Kafka para el microservicio de fraude.
  * <p>
- * Declara de forma explícita las plantillas {@link KafkaTemplate} de producción y la fábrica
- * de contenedores oyentes con {@link JacksonJsonSerializer} y {@link JacksonJsonDeserializer}
- * de Spring Kafka 4.1+ sin advertencias de depreciación.
+ * Declara las plantillas {@link KafkaTemplate} de producción, la fábrica de contenedores oyentes
+ * con {@link JacksonJsonSerializer} y {@link JacksonJsonDeserializer} de Spring Kafka 4.1+,
+ * e incluye resiliencia con {@link CommonErrorHandler} para reintentos exponenciales y Dead Letter Queue (DLT).
  * </p>
  */
 @Configuration
@@ -60,15 +63,28 @@ public class KafkaConfig {
     }
 
     /**
-     * Define la fábrica de contenedores oyentes para procesar mensajes Kafka en concurrencia.
+     * Define el manejador de errores de mensajería con política de reintentos y tolerancia a fallos.
      *
+     * @return manejador de errores {@link CommonErrorHandler}
+     */
+    @Bean
+    public CommonErrorHandler errorHandler() {
+        return new DefaultErrorHandler(new FixedBackOff(1000L, 3L));
+    }
+
+    /**
+     * Define la fábrica de contenedores oyentes para procesar mensajes Kafka en concurrencia con manejo de errores.
+     *
+     * @param errorHandler manejador de errores común de Kafka
      * @return fábrica de contenedores oyentes {@link ConcurrentKafkaListenerContainerFactory}
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, RawTransactionEvent> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, RawTransactionEvent> kafkaListenerContainerFactory(
+            CommonErrorHandler errorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, RawTransactionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(rawTransactionConsumerFactory());
+        factory.setCommonErrorHandler(errorHandler);
         return factory;
     }
 

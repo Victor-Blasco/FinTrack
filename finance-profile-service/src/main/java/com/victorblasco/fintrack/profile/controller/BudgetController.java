@@ -13,6 +13,8 @@ import java.util.UUID;
 
 /**
  * Controlador REST para la administración de presupuestos y límites de consumo por categoría.
+ *
+ * @author Victor Blasco
  */
 @RestController
 @RequestMapping("/api/v1/budgets")
@@ -20,10 +22,23 @@ public class BudgetController {
 
     private final BudgetService budgetService;
 
+    /**
+     * Construye el controlador inyectando el servicio de presupuestos.
+     *
+     * @param budgetService servicio de negocio de presupuestos
+     */
     public BudgetController(BudgetService budgetService) {
         this.budgetService = budgetService;
     }
 
+    /**
+     * Crea o actualiza un presupuesto de gasto mensual para una categoría especificada.
+     *
+     * @param request DTO {@link CreateBudgetRequest} con la categoría y el límite asignado
+     * @param userIdQueryParam identificador del usuario en query param
+     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @return respuesta HTTP 201 Created con el {@link BudgetResponse}
+     */
     @PostMapping
     public ResponseEntity<BudgetResponse> createBudget(
             @Valid @RequestBody CreateBudgetRequest request,
@@ -35,6 +50,13 @@ public class BudgetController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * Obtiene la lista de presupuestos activos y sus porcentajes de consumo para el usuario.
+     *
+     * @param userIdQueryParam identificador del usuario en query param
+     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @return respuesta HTTP 200 OK con la lista de {@link BudgetResponse}
+     */
     @GetMapping
     public ResponseEntity<List<BudgetResponse>> getUserBudgets(
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
@@ -45,6 +67,14 @@ public class BudgetController {
         return ResponseEntity.ok(budgets);
     }
 
+    /**
+     * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
+     *
+     * @param queryParam UUID en la URL
+     * @param header cabecera HTTP X-User-Id
+     * @return UUID del usuario resuelto
+     */
+    //TODO: CAMBIAR EN PRODUCCIÓN A SOLO CABECERA
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

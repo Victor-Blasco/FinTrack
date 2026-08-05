@@ -21,7 +21,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuración de la infraestructura Apache Kafka para el servicio de perfil financiero.
+ * Configuración de la infraestructura Apache Kafka para el servicio de perfil financiero y libro mayor.
+ * <p>
+ * Declara las plantillas {@link KafkaTemplate} de producción, la fábrica de contenedores oyentes
+ * con {@link JacksonJsonSerializer} y {@link JacksonJsonDeserializer} de Spring Kafka 4.1+, e incluye
+ * resiliencia con {@link CommonErrorHandler} para reintentos y tolerancia a fallos.
+ * </p>
+ *
+ * @author Victor Blasco
  */
 @Configuration
 @EnableKafka
@@ -33,11 +40,21 @@ public class KafkaConfig {
     @Value("${spring.kafka.consumer.group-id:finance-profile-group}")
     private String groupId;
 
+    /**
+     * Define el manejador de errores de mensajería con política de reintentos y resiliencia.
+     *
+     * @return manejador de errores {@link CommonErrorHandler}
+     */
     @Bean
     public CommonErrorHandler errorHandler() {
         return new DefaultErrorHandler(new FixedBackOff(1000L, 3L));
     }
 
+    /**
+     * Define la fábrica de consumidores genéricos para eventos entrantes de Kafka.
+     *
+     * @return fábrica de consumidores {@link ConsumerFactory}
+     */
     @Bean
     public ConsumerFactory<String, Object> genericConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -55,6 +72,12 @@ public class KafkaConfig {
         );
     }
 
+    /**
+     * Define la fábrica de contenedores oyentes para procesar eventos Kafka en concurrencia con manejo de errores.
+     *
+     * @param errorHandler manejador de errores común de Kafka
+     * @return fábrica de contenedores oyentes {@link ConcurrentKafkaListenerContainerFactory}
+     */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
             CommonErrorHandler errorHandler) {
@@ -65,6 +88,11 @@ public class KafkaConfig {
         return factory;
     }
 
+    /**
+     * Define la fábrica de productores para eventos de alerta de presupuesto {@link BudgetAlertEvent}.
+     *
+     * @return fábrica de productores {@link ProducerFactory}
+     */
     @Bean
     public ProducerFactory<String, BudgetAlertEvent> budgetAlertProducerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -74,6 +102,11 @@ public class KafkaConfig {
         return new DefaultKafkaProducerFactory<>(props);
     }
 
+    /**
+     * Declara el bean {@link KafkaTemplate} fuertemente tipado para alertas de presupuesto.
+     *
+     * @return plantilla Kafka {@link KafkaTemplate}
+     */
     @Bean
     public KafkaTemplate<String, BudgetAlertEvent> budgetAlertKafkaTemplate() {
         return new KafkaTemplate<>(budgetAlertProducerFactory());

@@ -21,7 +21,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Implementación del servicio de libro mayor con soporte de consolidación de eventos Kafka y saldos atómicos.
+ * Implementación de alto rendimiento del servicio de libro mayor contable (Ledger).
+ * <p>
+ * Se encarga de procesar eventos asíncronos de Kafka garantizando la persistencia defensiva
+ * en estado {@code PENDING}, la modificación atómica de saldos en base de datos PostgreSQL
+ * para transacciones {@code CLEAN} y el aislamiento de sospechas de fraude en {@code QUARANTINED}.
+ * </p>
+ *
+ * @author Victor Blasco
  */
 @Service
 public class LedgerServiceImpl implements LedgerService {
@@ -32,6 +39,13 @@ public class LedgerServiceImpl implements LedgerService {
     private final TransactionRepository transactionRepository;
     private final BudgetService budgetService;
 
+    /**
+     * Construye el servicio inyectando repositorios JPA y el servicio de presupuestos.
+     *
+     * @param accountRepository repositorio de cuentas bancarias
+     * @param transactionRepository repositorio de transacciones contables
+     * @param budgetService servicio de presupuestos para actualización de gastos acumulados
+     */
     public LedgerServiceImpl(AccountRepository accountRepository,
                              TransactionRepository transactionRepository,
                              BudgetService budgetService) {
@@ -40,6 +54,12 @@ public class LedgerServiceImpl implements LedgerService {
         this.budgetService = budgetService;
     }
 
+    /**
+     * Registra defensivamente la transacción entrante con estado {@link Status#PENDING}
+     * y categoría {@link Category#UNASSIGNED}.
+     *
+     * @param event evento {@link RawTransactionEvent}
+     */
     @Override
     @Transactional
     public void processRawTransaction(RawTransactionEvent event) {
@@ -75,6 +95,15 @@ public class LedgerServiceImpl implements LedgerService {
         log.info("Transacción registrada con estado PENDING para transactionId [{}]", event.transactionId());
     }
 
+    /**
+     * Modifica el estado de la transacción según el veredicto de fraude.
+     * <p>
+     * Si es {@code CLEAN}, ejecuta la sentencia SQL atómica {@code UPDATE accounts SET balance = balance + :amount}
+     * y notifica al servicio de presupuestos. Si es {@code SUSPICIOUS}, la mueve a {@code QUARANTINED}.
+     * </p>
+     *
+     * @param event evento {@link FraudVerdictEvent}
+     */
     @Override
     @Transactional
     public void applyFraudVerdict(FraudVerdictEvent event) {
@@ -108,6 +137,11 @@ public class LedgerServiceImpl implements LedgerService {
         }
     }
 
+    /**
+     * Asigna la categoría de gasto sobre la transacción indicada.
+     *
+     * @param event evento {@link TransactionCategorizedEvent}
+     */
     @Override
     @Transactional
     public void applyCategorization(TransactionCategorizedEvent event) {
@@ -139,6 +173,9 @@ public class LedgerServiceImpl implements LedgerService {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public AccountSummaryResponse getAccountSummary(UUID userId) {
@@ -154,6 +191,9 @@ public class LedgerServiceImpl implements LedgerService {
         );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<TransactionResponse> getUserTransactions(UUID userId) {

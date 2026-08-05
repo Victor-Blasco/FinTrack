@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controlador REST para el historial de movimientos contables.
+ * Controlador REST para consultar el historial de movimientos contables y transacciones.
+ *
+ * @author Victor Blasco
  */
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -17,10 +19,22 @@ public class TransactionController {
 
     private final LedgerService ledgerService;
 
+    /**
+     * Construye el controlador inyectando el servicio de libro mayor.
+     *
+     * @param ledgerService servicio de negocio del libro mayor
+     */
     public TransactionController(LedgerService ledgerService) {
         this.ledgerService = ledgerService;
     }
 
+    /**
+     * Obtiene la lista de movimientos financieros registrados para el usuario.
+     *
+     * @param userIdQueryParam identificador del usuario en query param
+     * @param userIdHeader cabecera HTTP opcional X-User-Id
+     * @return respuesta HTTP 200 OK con la lista de {@link TransactionResponse}
+     */
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
@@ -31,6 +45,13 @@ public class TransactionController {
         return ResponseEntity.ok(transactions);
     }
 
+    /**
+     * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
+     *
+     * @param queryParam UUID en la URL
+     * @param header cabecera HTTP X-User-Id
+     * @return UUID del usuario resuelto
+     */
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

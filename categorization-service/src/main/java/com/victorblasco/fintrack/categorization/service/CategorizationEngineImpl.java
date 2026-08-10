@@ -163,6 +163,18 @@ public class CategorizationEngineImpl implements CategorizationEngine {
         REGEX_PATTERN_MAP = Collections.unmodifiableMap(regexMap);
     }
 
+    /**
+     * Categoriza un nombre de comerciante/establecimiento utilizando una estrategia de búsqueda de dos niveles.
+     * <p>
+     * 1. Limpieza y normalización básica (trim y mayúsculas).<br>
+     * 2. Búsqueda exacta O(1) en el mapa estático de comercios conocidos.<br>
+     * 3. Evaluación de patrones de expresiones regulares para comerciantes genéricos.<br>
+     * Si no se encuentra coincidencia, retorna {@link Category#OTROS}.
+     * </p>
+     *
+     * @param rawMerchant Nombre del comerciante o concepto original recibido de la transacción.
+     * @return La {@link Category} correspondiente o {@link Category#OTROS} si no coincide con ninguna regla.
+     */
     @Override
     public Category categorize(String rawMerchant) {
         if (rawMerchant == null || rawMerchant.isBlank()) {

@@ -30,6 +30,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/api/v1/accounts') ||
     pathname.startsWith('/api/v1/budgets') ||
+    pathname.startsWith('/api/v1/transactions') ||
     pathname.startsWith('/api/v1/ingest')
   ) {
     const authHeader = request.headers.get('authorization')
@@ -71,7 +72,11 @@ export async function proxy(request: NextRequest) {
 
       // Identificar el microservicio destino
       let targetServiceUrl = ''
-      if (pathname.startsWith('/api/v1/accounts') || pathname.startsWith('/api/v1/budgets')) {
+      if (
+        pathname.startsWith('/api/v1/accounts') ||
+        pathname.startsWith('/api/v1/budgets') ||
+        pathname.startsWith('/api/v1/transactions')
+      ) {
         targetServiceUrl = 'http://localhost:8083' // finance-profile-service
       } else if (pathname.startsWith('/api/v1/ingest')) {
         targetServiceUrl = 'http://localhost:8082' // banking-ingest-service

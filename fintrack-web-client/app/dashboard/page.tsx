@@ -96,7 +96,7 @@ export interface ConfirmItemState {
  * Categorías predeterminadas del sistema derivadas de Category.java (categorization-service).
  * Son inmutables y permanecen de forma continua en la aplicación.
  */
-export const DEFAULT_SYSTEM_BUDGETS: BudgetCategory[] = [
+const DEFAULT_SYSTEM_BUDGETS: BudgetCategory[] = [
   { id: "sys-alimentacion", name: "Alimentación", spent: 0, limit: 450, icon: "ShoppingBag", isCustom: false, subItems: [] },
   { id: "sys-vivienda", name: "Vivienda & Servicios", spent: 0, limit: 900, icon: "Home", isCustom: false, subItems: [] },
   { id: "sys-ocio", name: "Ocio & Restauración", spent: 0, limit: 200, icon: "Coffee", isCustom: false, subItems: [] },

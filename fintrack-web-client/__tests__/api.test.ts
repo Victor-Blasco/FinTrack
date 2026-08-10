@@ -7,7 +7,7 @@ describe("finTrackApi - HTTP Client Unit Tests", () => {
   beforeEach(() => {
     // Limpiar mocks e inyectar un token de prueba en localStorage
     global.fetch = jest.fn();
-    Storage.prototype.getItem = jest.fn((key) => {
+    Storage.prototype.getItem = jest.fn((key: string) => {
       if (key === "accessToken") return "mock-jwt-bearer-token";
       return null;
     });

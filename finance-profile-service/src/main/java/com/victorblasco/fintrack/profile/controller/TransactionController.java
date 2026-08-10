@@ -29,10 +29,11 @@ public class TransactionController {
      */
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(
+            @RequestHeader(name = "X-User-Id", required = false) String xUserIdHeader,
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, authHeader);
+        UUID userId = resolveUserId(xUserIdHeader, userIdQueryParam, authHeader);
         List<TransactionResponse> transactions = ledgerService.getUserTransactions(userId);
         return ResponseEntity.ok(transactions);
     }
@@ -44,23 +45,29 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> updateTransactionStatus(
             @PathVariable("id") UUID id,
             @RequestParam("status") String status,
+            @RequestHeader(name = "X-User-Id", required = false) String xUserIdHeader,
             @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
     ) {
-        UUID userId = resolveUserId(userIdQueryParam, authHeader);
+        UUID userId = resolveUserId(xUserIdHeader, userIdQueryParam, authHeader);
         TransactionResponse updated = ledgerService.updateTransactionStatus(userId, id, status);
         return ResponseEntity.ok(updated);
     }
 
-    private UUID resolveUserId(UUID queryParam, String header) {
+    private UUID resolveUserId(String xUserIdHeader, UUID queryParam, String authHeader) {
+        if (xUserIdHeader != null && !xUserIdHeader.isBlank()) {
+            try {
+                return UUID.fromString(xUserIdHeader);
+            } catch (IllegalArgumentException ignored) {}
+        }
         if (queryParam != null) {
             return queryParam;
         }
-        if (header != null && !header.isBlank()) {
+        if (authHeader != null && !authHeader.isBlank()) {
             try {
-                return UUID.fromString(header);
+                return UUID.fromString(authHeader);
             } catch (IllegalArgumentException ignored) {}
         }
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        throw new IllegalArgumentException("X-User-Id header missing or invalid");
     }
 }

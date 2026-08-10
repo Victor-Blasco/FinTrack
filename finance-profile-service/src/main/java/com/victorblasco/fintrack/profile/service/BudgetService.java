@@ -44,4 +44,15 @@ public interface BudgetService {
      * @param amount importe del gasto a imputar
      */
     void applyExpenseToBudget(UUID userId, Category category, BigDecimal amount);
+
+    /**
+     * Elimina una categoría de presupuesto personalizada creada por el usuario.
+     * <p>
+     * Las categorías predeterminadas del sistema son inmutables y no se pueden borrar.
+     * </p>
+     *
+     * @param userId identificador del usuario
+     * @param budgetId identificador único del presupuesto
+     */
+    void deleteBudget(UUID userId, UUID budgetId);
 }

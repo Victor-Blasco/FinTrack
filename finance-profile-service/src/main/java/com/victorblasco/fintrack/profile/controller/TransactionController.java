@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controlador REST para consultar el historial de movimientos contables y transacciones.
+ * Controlador REST para consultar el historial de movimientos contables y actualizar la seguridad.
  *
  * @author Victor Blasco
  */
@@ -20,21 +20,12 @@ public class TransactionController {
 
     private final LedgerService ledgerService;
 
-    /**
-     * Construye el controlador inyectando el servicio de libro mayor.
-     *
-     * @param ledgerService servicio de negocio del libro mayor
-     */
     public TransactionController(LedgerService ledgerService) {
         this.ledgerService = ledgerService;
     }
 
     /**
-     * Obtiene la lista de movimientos financieros registrados para el usuario.
-     *
-     * @param userIdQueryParam identificador del usuario en query param
-     * @param authHeader cabecera HTTP opcional Authorization
-     * @return respuesta HTTP 200 OK con la lista de {@link TransactionResponse}
+     * Obtiene la lista ordenada de movimientos financieros registrados para el usuario.
      */
     @GetMapping
     public ResponseEntity<List<TransactionResponse>> getUserTransactions(
@@ -47,12 +38,20 @@ public class TransactionController {
     }
 
     /**
-     * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
-     *
-     * @param queryParam UUID en la URL
-     * @param header cabecera HTTP Authorization
-     * @return UUID del usuario resuelto
+     * Actualiza el estado de seguridad/cuarentena de una transacción en respuesta a FraudShield.
      */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TransactionResponse> updateTransactionStatus(
+            @PathVariable("id") UUID id,
+            @RequestParam("status") String status,
+            @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
+    ) {
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
+        TransactionResponse updated = ledgerService.updateTransactionStatus(userId, id, status);
+        return ResponseEntity.ok(updated);
+    }
+
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

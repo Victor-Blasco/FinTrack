@@ -22,11 +22,6 @@ import java.util.UUID;
 
 /**
  * Implementación del servicio de presupuestos con incrementos atómicos y emisión de alertas.
- * <p>
- * Gestiona el límite mensual de gastos por categoría, acumula consumos atómicamente en PostgreSQL
- * mediante {@link BudgetRepository#incrementAccumulatedSpendAtomic} y notifica al tópico Kafka
- * {@code budget-alerts} cuando se supera el 80% (WARNING) o el 100% (CRITICAL).
- * </p>
  *
  * @author Victor Blasco
  */
@@ -38,20 +33,11 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetRepository budgetRepository;
     private final BudgetAlertProducer budgetAlertProducer;
 
-    /**
-     * Construye el servicio inyectando el repositorio de presupuestos y el productor de alertas.
-     *
-     * @param budgetRepository repositorio JPA de presupuestos
-     * @param budgetAlertProducer productor Kafka de alertas de presupuesto
-     */
     public BudgetServiceImpl(BudgetRepository budgetRepository, BudgetAlertProducer budgetAlertProducer) {
         this.budgetRepository = budgetRepository;
         this.budgetAlertProducer = budgetAlertProducer;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @Transactional
     public BudgetResponse createOrUpdateBudget(UUID userId, CreateBudgetRequest request) {
@@ -71,9 +57,6 @@ public class BudgetServiceImpl implements BudgetService {
         return mapToResponse(saved);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @Transactional(readOnly = true)
     public List<BudgetResponse> getUserBudgets(UUID userId) {
@@ -82,9 +65,6 @@ public class BudgetServiceImpl implements BudgetService {
                 .toList();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @Transactional
     public void applyExpenseToBudget(UUID userId, Category category, BigDecimal amount) {
@@ -117,12 +97,25 @@ public class BudgetServiceImpl implements BudgetService {
         }
     }
 
-    /**
-     * Convierte la entidad {@link Budget} al DTO {@link BudgetResponse} calculando el porcentaje consumido.
-     *
-     * @param budget entidad de presupuesto
-     * @return DTO de respuesta
-     */
+    @Override
+    @Transactional
+    public void deleteBudget(UUID userId, UUID budgetId) {
+        Budget budget = budgetRepository.findById(budgetId)
+                .orElseThrow(() -> new IllegalArgumentException("Presupuesto no encontrado con ID: " + budgetId));
+
+        if (!budget.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("El presupuesto no pertenece al usuario especificado");
+        }
+
+        Category cat = budget.getCategory();
+        if (cat == Category.ALIMENTACION || cat == Category.VIVIENDA || cat == Category.OCIO || cat == Category.TRANSPORTE || cat == Category.SALUD_DEPORTE) {
+            throw new IllegalArgumentException("Las categorías predeterminadas del sistema son inmutables y no se pueden eliminar.");
+        }
+
+        budgetRepository.delete(budget);
+        log.info("Presupuesto de categoría personalizada [{}] eliminado para el usuario [{}]", cat, userId);
+    }
+
     private BudgetResponse mapToResponse(Budget budget) {
         double percentage = 0.0;
         if (budget.getMonthlyLimit() != null && budget.getMonthlyLimit().compareTo(BigDecimal.ZERO) > 0) {

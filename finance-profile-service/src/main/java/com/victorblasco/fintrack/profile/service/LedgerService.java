@@ -12,9 +12,9 @@ import java.util.UUID;
 /**
  * Interfaz del servicio de negocio del libro mayor contable (Ledger).
  * <p>
- * Define las operaciones necesarias para la ingesta inicial de transacciones crudas,
- * consolidación atómica de saldos tras la evaluación de fraude, asignación de categorías
- * y consulta de estados contables para la aplicación cliente.
+ * Define las operaciones necesarias para la ingesta de transacciones crudas desde Kafka,
+ * consolidación atómica de saldos, asignación de categorías, actualización de seguridad
+ * y consulta de saldos y movimientos para la aplicación cliente.
  * </p>
  *
  * @author Victor Blasco
@@ -24,7 +24,7 @@ public interface LedgerService {
     /**
      * Registra una nueva transacción bancaria cruda entrante con estado inicial PENDING.
      *
-     * @param event evento {@link RawTransactionEvent} proveniente de Kafka
+     * @param event evento {@link RawTransactionEvent} proveniente del bus Kafka
      */
     void processRawTransaction(RawTransactionEvent event);
 
@@ -46,7 +46,7 @@ public interface LedgerService {
      * Obtiene el resumen consolidado de la cuenta bancaria y saldo del usuario.
      *
      * @param userId identificador único del usuario
-     * @return {@link AccountSummaryResponse} con la información de la cuenta y saldo disponible
+     * @return DTO {@link AccountSummaryResponse} con la información de la cuenta y saldo disponible
      */
     AccountSummaryResponse getAccountSummary(UUID userId);
 
@@ -57,4 +57,14 @@ public interface LedgerService {
      * @return lista de DTOs {@link TransactionResponse} ordenados cronológicamente de forma descendente
      */
     List<TransactionResponse> getUserTransactions(UUID userId);
+
+    /**
+     * Actualiza el estado de seguridad de una transacción en respuesta a acciones de revisión de FraudShield.
+     *
+     * @param userId identificador del usuario
+     * @param transactionId identificador de la transacción a actualizar
+     * @param status nuevo estado de seguridad (ej. CLEAN, QUARANTINED)
+     * @return DTO {@link TransactionResponse} con la información actualizada
+     */
+    TransactionResponse updateTransactionStatus(UUID userId, UUID transactionId, String status);
 }

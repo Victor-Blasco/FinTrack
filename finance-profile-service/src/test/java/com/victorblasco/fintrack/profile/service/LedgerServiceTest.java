@@ -41,7 +41,7 @@ class LedgerServiceTest {
 
     @BeforeEach
     void setUp() {
-        ledgerService = new LedgerServiceImpl(accountRepository, transactionRepository, budgetService);
+        ledgerService = new LedgerServiceImpl(transactionRepository, accountRepository, budgetService);
     }
 
     @Test

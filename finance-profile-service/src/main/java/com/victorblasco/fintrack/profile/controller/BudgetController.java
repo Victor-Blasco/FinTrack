@@ -23,22 +23,12 @@ public class BudgetController {
 
     private final BudgetService budgetService;
 
-    /**
-     * Construye el controlador inyectando el servicio de presupuestos.
-     *
-     * @param budgetService servicio de negocio de presupuestos
-     */
     public BudgetController(BudgetService budgetService) {
         this.budgetService = budgetService;
     }
 
     /**
      * Crea o actualiza un presupuesto de gasto mensual para una categoría especificada.
-     *
-     * @param request DTO {@link CreateBudgetRequest} con la categoría y el límite asignado
-     * @param userIdQueryParam identificador del usuario en query param
-     * @param authHeader cabecera HTTP opcional Authorization
-     * @return respuesta HTTP 201 Created con el {@link BudgetResponse}
      */
     @PostMapping
     public ResponseEntity<BudgetResponse> createBudget(
@@ -53,10 +43,6 @@ public class BudgetController {
 
     /**
      * Obtiene la lista de presupuestos activos y sus porcentajes de consumo para el usuario.
-     *
-     * @param userIdQueryParam identificador del usuario en query param
-     * @param authHeader cabecera HTTP opcional Authorization
-     * @return respuesta HTTP 200 OK con la lista de {@link BudgetResponse}
      */
     @GetMapping
     public ResponseEntity<List<BudgetResponse>> getUserBudgets(
@@ -69,12 +55,19 @@ public class BudgetController {
     }
 
     /**
-     * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
-     *
-     * @param queryParam UUID en la URL
-     * @param header cabecera HTTP Authorization
-     * @return UUID del usuario resuelto
+     * Elimina un presupuesto de categoría personalizada por su ID.
      */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteBudget(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "userId", required = false) UUID userIdQueryParam,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader
+    ) {
+        UUID userId = resolveUserId(userIdQueryParam, authHeader);
+        budgetService.deleteBudget(userId, id);
+        return ResponseEntity.noContent().build();
+    }
+
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

@@ -29,6 +29,7 @@ import {
   Car,
   HeartPulse,
   MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 
 /**
@@ -45,6 +46,8 @@ export interface BudgetCategory {
   limit: number;
   /** Clave del icono descriptivo de la categoría */
   icon: string;
+  /** Indica si la categoría fue creada por el usuario (eliminable) o es del sistema (inmutable) */
+  isCustom?: boolean;
   /** Listado de sub-movimientos registrados dentro de esta categoría */
   subItems?: Array<{ id: string; description: string; amount: number; date: string }>;
 }
@@ -312,6 +315,7 @@ export default function DashboardPage() {
       spent: 0,
       limit: parsedLimit,
       icon: "MoreHorizontal",
+      isCustom: true,
       subItems: [],
     };
 
@@ -321,6 +325,33 @@ export default function DashboardPage() {
     setNewCategoryName("");
     setNewCategoryLimit("");
     setActiveModal("NONE");
+  };
+
+  /**
+   * Elimina una categoría de presupuesto personalizada creada por el usuario.
+   * Las categorías predeterminadas del sistema son inmutables y no se pueden eliminar.
+   *
+   * @param budget - Categoría a eliminar
+   * @param e - Evento del clic React
+   */
+  const handleDeleteBudget = (budget: BudgetCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!budget.isCustom) {
+      alert("Las categorías predeterminadas del sistema son inmutables y no se pueden eliminar.");
+      return;
+    }
+    setBudgets((prev) => prev.filter((b) => b.id !== budget.id));
+  };
+
+  /**
+   * Elimina un movimiento registrado del feed de transacciones.
+   *
+   * @param txId - Identificador único de la transacción a eliminar
+   * @param e - Evento del clic React
+   */
+  const handleDeleteTransaction = (txId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTransactions((prev) => prev.filter((t) => t.id !== txId));
   };
 
   // Filtrado de transacciones según la pestaña activa
@@ -583,20 +614,34 @@ export default function DashboardPage() {
                         <span className="text-sm font-bold text-foreground">{b.name}</span>
                       </div>
 
-                      {/* Pill semántico de estado */}
-                      {isOver ? (
-                        <span className="rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[11px] font-bold text-red-600 dark:text-red-400">
-                          Excedido
-                        </span>
-                      ) : isNear ? (
-                        <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                          Al Límite
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                          OK
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {/* Pill semántico de estado */}
+                        {isOver ? (
+                          <span className="rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[11px] font-bold text-red-600 dark:text-red-400">
+                            Excedido
+                          </span>
+                        ) : isNear ? (
+                          <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                            Al Límite
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                            OK
+                          </span>
+                        )}
+
+                        {/* Botón de eliminación exclusivo para categorías de usuario */}
+                        {b.isCustom && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteBudget(b, e)}
+                            className="p-1 rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
+                            title="Eliminar categoría personalizada"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Importes monetarios en Geist Mono */}
@@ -747,31 +792,42 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div
-                      className={`text-sm font-bold num ${
-                        tx.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
-                      }`}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div
+                        className={`text-sm font-bold num ${
+                          tx.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                        }`}
+                      >
+                        {tx.amount > 0 ? `+${tx.amount.toFixed(2)} €` : `${tx.amount.toFixed(2)} €`}
+                      </div>
+                      <div className="mt-0.5">
+                        {tx.status === "CLEAN" && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3 w-3" /> CLEAN
+                          </span>
+                        )}
+                        {tx.status === "SUSPICIOUS" && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400">
+                            <AlertTriangle className="h-3 w-3" /> CUARENTENA
+                          </span>
+                        )}
+                        {tx.status === "PENDING" && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                            PROCESANDO
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteTransaction(tx.id, e)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
+                      title="Eliminar movimiento"
                     >
-                      {tx.amount > 0 ? `+${tx.amount.toFixed(2)} €` : `${tx.amount.toFixed(2)} €`}
-                    </div>
-                    <div className="mt-0.5">
-                      {tx.status === "CLEAN" && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3 w-3" /> CLEAN
-                        </span>
-                      )}
-                      {tx.status === "SUSPICIOUS" && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400">
-                          <AlertTriangle className="h-3 w-3" /> CUARENTENA
-                        </span>
-                      )}
-                      {tx.status === "PENDING" && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                          PROCESANDO
-                        </span>
-                      )}
-                    </div>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               ))

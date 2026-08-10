@@ -10,10 +10,6 @@ import java.util.UUID;
 
 /**
  * Controlador REST para la consulta de información de saldos y cuentas bancarias.
- * <p>
- * Expone endpoints consumibles por la aplicación cliente {@code fintrack-web-client}
- * para obtener el estado financiero del usuario.
- * </p>
  *
  * @author Victor Blasco
  */
@@ -23,21 +19,12 @@ public class AccountController {
 
     private final LedgerService ledgerService;
 
-    /**
-     * Construye el controlador inyectando el servicio de libro mayor.
-     *
-     * @param ledgerService servicio de negocio del libro mayor
-     */
     public AccountController(LedgerService ledgerService) {
         this.ledgerService = ledgerService;
     }
 
     /**
      * Obtiene el resumen de la cuenta bancaria y saldo consolidado del usuario.
-     *
-     * @param userIdQueryParam identificador del usuario pasado opcionalmente como query param
-     * @param authHeader cabecera HTTP estándar de autorización u opcional
-     * @return respuesta HTTP 200 OK con {@link AccountSummaryResponse}
      */
     @GetMapping("/summary")
     public ResponseEntity<AccountSummaryResponse> getAccountSummary(
@@ -49,13 +36,6 @@ public class AccountController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Resuelve la identidad del usuario dando prioridad al parámetro de consulta o cabecera HTTP.
-     *
-     * @param queryParam UUID en la URL
-     * @param header cabecera HTTP Authorization
-     * @return UUID del usuario resuelto
-     */
     private UUID resolveUserId(UUID queryParam, String header) {
         if (queryParam != null) {
             return queryParam;

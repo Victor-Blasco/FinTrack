@@ -155,7 +155,10 @@ export default function DashboardPage() {
   // Estado para el saldo consolidado de la cuenta
   const [accountBalance, setAccountBalance] = useState<number>(0.0);
 
-  // Cargar datos persistidos desde los microservicios backend y PostgreSQL al montar en cliente
+  // Estado para controlar que la carga inicial ha finalizado antes de guardar
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+
+  // Cargar datos persistidos desde PostgreSQL / microservicios o sesión local al montar
   useEffect(() => {
     async function loadBackendData() {
       try {
@@ -169,8 +172,9 @@ export default function DashboardPage() {
           setAccountBalance(summaryRes.value.balance);
         }
 
+        let loadedBudgets: BudgetCategory[] = [];
         if (budgetsRes.status === "fulfilled" && budgetsRes.value && budgetsRes.value.length > 0) {
-          const mappedBudgets: BudgetCategory[] = budgetsRes.value.map((b) => ({
+          loadedBudgets = budgetsRes.value.map((b) => ({
             id: b.id,
             name: b.category,
             spent: b.accumulatedSpend,
@@ -179,11 +183,24 @@ export default function DashboardPage() {
             isCustom: !["ALIMENTACION", "VIVIENDA", "OCIO", "TRANSPORTE", "SALUD_DEPORTE"].includes(b.category),
             subItems: [],
           }));
-          setBudgets(mappedBudgets);
+        } else {
+          const savedBudgets = localStorage.getItem("fintrack_saved_budgets");
+          if (savedBudgets) {
+            try {
+              loadedBudgets = JSON.parse(savedBudgets);
+            } catch (ignored) {}
+          }
         }
 
+        if (loadedBudgets.length > 0) {
+          setBudgets(loadedBudgets);
+        } else {
+          setBudgets(DEFAULT_SYSTEM_BUDGETS);
+        }
+
+        let loadedTxs: Transaction[] = [];
         if (txsRes.status === "fulfilled" && txsRes.value && txsRes.value.length > 0) {
-          const mappedTxs: Transaction[] = txsRes.value.map((t) => ({
+          loadedTxs = txsRes.value.map((t) => ({
             id: t.id,
             merchant: t.merchant,
             date: t.timestamp ? new Date(t.timestamp).toLocaleDateString("es-ES") : "Hoy",
@@ -191,11 +208,22 @@ export default function DashboardPage() {
             category: t.category,
             status: t.status === "QUARANTINED" ? "SUSPICIOUS" : t.status === "PROCESSED" ? "CLEAN" : "PENDING",
           }));
-          setTransactions(mappedTxs);
+        } else {
+          const savedTxs = localStorage.getItem("fintrack_saved_transactions");
+          if (savedTxs) {
+            try {
+              loadedTxs = JSON.parse(savedTxs);
+            } catch (ignored) {}
+          }
+        }
+
+        if (loadedTxs.length > 0) {
+          setTransactions(loadedTxs);
         }
       } catch (err) {
-        console.warn("Conectado con sincronización local de respaldo:", err);
+        console.warn("Recuperando datos persistidos de sesión local:", err);
       } finally {
+        setIsLoaded(true);
         setLoading(false);
       }
     }
@@ -211,6 +239,26 @@ export default function DashboardPage() {
 
     loadBackendData();
   }, [router]);
+
+  // Persistir presupuestos cuando cambian tras finalizar la carga inicial
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem("fintrack_saved_budgets", JSON.stringify(budgets));
+    } catch (err) {
+      console.error("Error al guardar presupuestos:", err);
+    }
+  }, [budgets, isLoaded]);
+
+  // Persistir transacciones cuando cambian tras finalizar la carga inicial
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem("fintrack_saved_transactions", JSON.stringify(transactions));
+    } catch (err) {
+      console.error("Error al guardar transacciones:", err);
+    }
+  }, [transactions, isLoaded]);
 
   /**
    * Maneja el cierre de sesión eliminando las credenciales del almacenamiento local.

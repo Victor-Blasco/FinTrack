@@ -91,10 +91,20 @@ export async function proxy(request: NextRequest) {
         }
       })
 
-    } catch (error) {
-      console.error('Error validating token in proxy:', error)
+    } catch (error: any) {
+      // Si auth-service (8081) o los microservicios están apagados, responder limpiamente sin romper el cliente
+      const isConnectionRefused = error?.code === 'ECONNREFUSED' || error?.cause?.code === 'ECONNREFUSED';
+      if (isConnectionRefused) {
+        console.warn('Microservicio backend desconectado (ECONNREFUSED). Operando en modo cliente.');
+        return NextResponse.json(
+          { success: false, message: 'Servicio backend no disponible temporalmente' },
+          { status: 503 }
+        )
+      }
+
+      console.error('Error procesando proxy en middleware:', error)
       return NextResponse.json(
-        { success: false, message: 'Internal validation error' },
+        { success: false, message: 'Error interno en la pasarela de la API' },
         { status: 500 }
       )
     }

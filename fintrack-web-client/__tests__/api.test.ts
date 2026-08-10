@@ -1,4 +1,4 @@
-import { finTrackApi } from "../lib/api";
+import { finTrackApi } from "@/lib/api";
 
 /**
  * Pruebas unitarias para el módulo cliente HTTP finTrackApi.

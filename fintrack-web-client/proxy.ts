@@ -43,10 +43,9 @@ export async function proxy(request: NextRequest) {
 
     try {
       // Validar token llamando al endpoint interno de auth-service
-      const validateRes = await fetch('http://localhost:8081/api/v1/auth/validate', {
-        headers: {
-          'Authorization': authHeader
-        }
+      const rawToken = authHeader.replace(/^Bearer\s+/, '')
+      const validateRes = await fetch(`http://localhost:8081/api/v1/auth/validate?token=${encodeURIComponent(rawToken)}`, {
+        method: 'POST'
       })
 
       if (!validateRes.ok) {
@@ -66,8 +65,9 @@ export async function proxy(request: NextRequest) {
         )
       }
 
-      // Clonar cabeceras y añadir X-User-Id
+      // Clonar cabeceras, eliminar X-User-Id malicioso enviado por el cliente e inyectar el verificado
       const requestHeaders = new Headers(request.headers)
+      requestHeaders.delete('x-user-id')
       requestHeaders.set('X-User-Id', userId)
 
       // Identificar el microservicio destino
@@ -84,12 +84,31 @@ export async function proxy(request: NextRequest) {
 
       const targetUrl = new URL(pathname, targetServiceUrl)
       
-      // Reescribir (Reverse Proxy) con cabeceras modificadas
-      return NextResponse.rewrite(targetUrl, {
-        request: {
+      // Realizar la petición HTTP desde el servidor Node para capturar la desconexión limpiamente
+      try {
+        const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.blob()
+        const backendRes = await fetch(targetUrl.toString(), {
+          method: request.method,
           headers: requestHeaders,
-        }
-      })
+          body,
+        })
+
+        const responseData = await backendRes.blob()
+        const responseHeaders = new Headers(backendRes.headers)
+        responseHeaders.delete('www-authenticate')
+
+        return new NextResponse(responseData, {
+          status: backendRes.status,
+          statusText: backendRes.statusText,
+          headers: responseHeaders,
+        })
+      } catch (targetErr: any) {
+        console.warn(`[Proxy Bypassed] El servicio ${targetServiceUrl} está apagado. Operando con sincronización local.`);
+        return NextResponse.json(
+          { success: false, message: `Microservicio ${targetServiceUrl} no disponible` },
+          { status: 503 }
+        )
+      }
 
     } catch (error: any) {
       // Si auth-service (8081) o los microservicios están apagados, responder limpiamente sin romper el cliente

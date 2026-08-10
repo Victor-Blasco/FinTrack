@@ -46,7 +46,10 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.message || "Credenciales incorrectas. Verifica tu email y contraseña.");
       } else {
-        localStorage.setItem("accessToken", data.accessToken);
+        const token = data.token || data.accessToken;
+        if (token) {
+          localStorage.setItem("accessToken", token);
+        }
         localStorage.setItem("userEmail", email);
         router.push("/dashboard");
       }

@@ -1,5 +1,5 @@
 server:
-  port: ${PORT_CATEGORIZATION_SERVICE:8084}
+  port: ${PORT_CATEGORIZATION_SERVICE:8085}
 
 spring:
   application:

@@ -1,5 +1,5 @@
 server:
-  port: ${PORT_FRAUD_SERVICE:8083}
+  port: ${PORT_FRAUD_SERVICE:8084}
 
 spring:
   application:

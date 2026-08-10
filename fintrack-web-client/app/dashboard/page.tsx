@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import MobileBottomSheet from "@/components/MobileBottomSheet";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import ToastNotification, { ToastType } from "@/components/ToastNotification";
 import {
   Wallet,
   TrendingUp,
@@ -81,6 +83,15 @@ export type FilterTab = "ALL" | "FRAUD" | "EXPENSES" | "INCOMES";
 export type ActiveModal = "NONE" | "ADD_EXPENSE" | "IMPORT_CSV" | "REVIEW_FRAUD" | "ADD_BUDGET";
 
 /**
+ * Estado para el elemento pendiente de confirmación de borrado.
+ */
+export interface ConfirmItemState {
+  type: "BUDGET" | "TRANSACTION";
+  id: string;
+  name: string;
+}
+
+/**
  * Componente principal de la pantalla de Dashboard (**`/dashboard`**).
  * <p>
  * Diseñado con enfoque **Mobile First**, ofrece un resumen financiero inmediato en el primer vistazo:
@@ -103,7 +114,14 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>("NONE");
-  const [showToast, setShowToast] = useState<boolean>(true);
+
+  // Estados para diálogos de confirmación y notificaciones Toast
+  const [confirmState, setConfirmState] = useState<ConfirmItemState | null>(null);
+  const [toastState, setToastState] = useState<{ isOpen: boolean; message: string; type: ToastType }>({
+    isOpen: true,
+    message: "Conectado en tiempo real al bus de eventos de FinTrack",
+    type: "info",
+  });
 
   // Estado para formulario de nuevo gasto rápido
   const [newMerchant, setNewMerchant] = useState<string>("");
@@ -295,6 +313,11 @@ export default function DashboardPage() {
     setNewMerchant("");
     setNewAmount("");
     setActiveModal("NONE");
+    setToastState({
+      isOpen: true,
+      message: `Gasto de ${parsedAmount.toFixed(2)} € registrado con éxito`,
+      type: "success",
+    });
   };
 
   /**
@@ -321,37 +344,79 @@ export default function DashboardPage() {
 
     setBudgets((prev) => [...prev, newCategoryItem]);
 
+    const createdName = newCategoryName;
     // Limpiar formulario y cerrar modal
     setNewCategoryName("");
     setNewCategoryLimit("");
     setActiveModal("NONE");
+    setToastState({
+      isOpen: true,
+      message: `Presupuesto '${createdName}' creado correctamente`,
+      type: "success",
+    });
   };
 
   /**
-   * Elimina una categoría de presupuesto personalizada creada por el usuario.
-   * Las categorías predeterminadas del sistema son inmutables y no se pueden eliminar.
+   * Inicia el flujo de eliminación de una categoría de presupuesto solicitando confirmación.
    *
    * @param budget - Categoría a eliminar
    * @param e - Evento del clic React
    */
-  const handleDeleteBudget = (budget: BudgetCategory, e: React.MouseEvent) => {
+  const handleInitiateDeleteBudget = (budget: BudgetCategory, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!budget.isCustom) {
-      alert("Las categorías predeterminadas del sistema son inmutables y no se pueden eliminar.");
+      setToastState({
+        isOpen: true,
+        message: "Las categorías predeterminadas del sistema son inmutables.",
+        type: "error",
+      });
       return;
     }
-    setBudgets((prev) => prev.filter((b) => b.id !== budget.id));
+    setConfirmState({
+      type: "BUDGET",
+      id: budget.id,
+      name: budget.name,
+    });
   };
 
   /**
-   * Elimina un movimiento registrado del feed de transacciones.
+   * Inicia el flujo de eliminación de un movimiento contable solicitando confirmación.
    *
-   * @param txId - Identificador único de la transacción a eliminar
+   * @param tx - Objeto {@link Transaction} a eliminar
    * @param e - Evento del clic React
    */
-  const handleDeleteTransaction = (txId: string, e: React.MouseEvent) => {
+  const handleInitiateDeleteTransaction = (tx: Transaction, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTransactions((prev) => prev.filter((t) => t.id !== txId));
+    setConfirmState({
+      type: "TRANSACTION",
+      id: tx.id,
+      name: tx.merchant,
+    });
+  };
+
+  /**
+   * Confirma y ejecuta la eliminación pendiente (presupuesto o transacción) y lanza el toast.
+   */
+  const handleConfirmDelete = () => {
+    if (!confirmState) return;
+
+    if (confirmState.type === "BUDGET") {
+      setBudgets((prev) => prev.filter((b) => b.id !== confirmState.id));
+      setToastState({
+        isOpen: true,
+        message: `Categoría '${confirmState.name}' eliminada correctamente`,
+        type: "success",
+      });
+    } else if (confirmState.type === "TRANSACTION") {
+      setTransactions((prev) => prev.filter((t) => t.id !== confirmState.id));
+      setToastState({
+        isOpen: true,
+        message: `Movimiento '${confirmState.name}' eliminado con éxito`,
+        type: "success",
+      });
+    }
+
+    setConfirmState(null);
   };
 
   // Filtrado de transacciones según la pestaña activa
@@ -634,7 +699,7 @@ export default function DashboardPage() {
                         {b.isCustom && (
                           <button
                             type="button"
-                            onClick={(e) => handleDeleteBudget(b, e)}
+                            onClick={(e) => handleInitiateDeleteBudget(b, e)}
                             className="p-1 rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
                             title="Eliminar categoría personalizada"
                           >
@@ -822,7 +887,7 @@ export default function DashboardPage() {
 
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteTransaction(tx.id, e)}
+                      onClick={(e) => handleInitiateDeleteTransaction(tx, e)}
                       className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
                       title="Eliminar movimiento"
                     >
@@ -1078,27 +1143,30 @@ export default function DashboardPage() {
         </form>
       </MobileBottomSheet>
 
-      {/* 8. Toast flotante sutil de estado de red */}
-      {showToast && (
-        <div className="fixed bottom-16 sm:bottom-6 right-4 z-30 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/90 backdrop-blur-md px-3.5 py-2.5 shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[11px] font-semibold text-foreground">
-              Transacciones en tiempo real activas
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowToast(false)}
-            className="text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {/* 8. Componente Modal de Confirmación Reutilizable */}
+      <ConfirmDialog
+        isOpen={confirmState !== null}
+        title={
+          confirmState?.type === "BUDGET"
+            ? "Eliminar Categoría de Presupuesto"
+            : "Eliminar Movimiento Contable"
+        }
+        message={`¿Estás seguro de que deseas eliminar "${confirmState?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Sí, Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmState(null)}
+      />
+
+      {/* 9. Componente ToastNotification Reutilizable (Auto-descarte a los 5 segundos) */}
+      <ToastNotification
+        isOpen={toastState.isOpen}
+        message={toastState.message}
+        type={toastState.type}
+        durationMs={5000}
+        onClose={() => setToastState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

@@ -93,6 +93,19 @@ export interface ConfirmItemState {
 }
 
 /**
+ * Categorías predeterminadas del sistema derivadas de Category.java (categorization-service).
+ * Son inmutables y permanecen de forma continua en la aplicación.
+ */
+export const DEFAULT_SYSTEM_BUDGETS: BudgetCategory[] = [
+  { id: "sys-alimentacion", name: "Alimentación", spent: 0, limit: 450, icon: "ShoppingBag", isCustom: false, subItems: [] },
+  { id: "sys-vivienda", name: "Vivienda & Servicios", spent: 0, limit: 900, icon: "Home", isCustom: false, subItems: [] },
+  { id: "sys-ocio", name: "Ocio & Restauración", spent: 0, limit: 200, icon: "Coffee", isCustom: false, subItems: [] },
+  { id: "sys-transporte", name: "Transporte", spent: 0, limit: 150, icon: "Car", isCustom: false, subItems: [] },
+  { id: "sys-salud", name: "Salud & Deporte", spent: 0, limit: 120, icon: "HeartPulse", isCustom: false, subItems: [] },
+  { id: "sys-otros", name: "Otros Gastos", spent: 0, limit: 250, icon: "MoreHorizontal", isCustom: false, subItems: [] },
+];
+
+/**
  * Componente principal de la pantalla de Dashboard (**`/dashboard`**).
  * <p>
  * Diseñado con enfoque **Mobile First**, ofrece un resumen financiero inmediato en el primer vistazo:
@@ -119,9 +132,9 @@ export default function DashboardPage() {
   // Estados para diálogos de confirmación y notificaciones Toast
   const [confirmState, setConfirmState] = useState<ConfirmItemState | null>(null);
   const [toastState, setToastState] = useState<{ isOpen: boolean; message: string; type: ToastType }>({
-    isOpen: true,
-    message: "Conectado en tiempo real al bus de eventos de FinTrack",
-    type: "info",
+    isOpen: false,
+    message: "",
+    type: "success",
   });
 
   // Estado para formulario de nuevo gasto rápido
@@ -133,114 +146,14 @@ export default function DashboardPage() {
   const [newCategoryName, setNewCategoryName] = useState<string>("");
   const [newCategoryLimit, setNewCategoryLimit] = useState<string>("");
 
-  // Presupuestos mock de ejemplo
-  const [budgets, setBudgets] = useState<BudgetCategory[]>([
-    {
-      id: "b-1",
-      name: "Alimentación",
-      spent: 340.5,
-      limit: 450.0,
-      icon: "ShoppingBag",
-      subItems: [
-        { id: "sub-1", description: "Mercadona Supermercados", amount: 42.5, date: "Hoy" },
-        { id: "sub-2", description: "Carrefour Express", amount: 88.0, date: "Hace 2 días" },
-        { id: "sub-3", description: "Frutería de Barrio", amount: 15.0, date: "Hace 4 días" },
-      ],
-    },
-    {
-      id: "b-2",
-      name: "Vivienda & Servicios",
-      spent: 850.0,
-      limit: 900.0,
-      icon: "Home",
-      subItems: [
-        { id: "sub-4", description: "Alquiler Mensual", amount: 750.0, date: "01 Aug" },
-        { id: "sub-5", description: "Factura Electricidad", amount: 100.0, date: "05 Aug" },
-      ],
-    },
-    {
-      id: "b-3",
-      name: "Ocio & Restauración",
-      spent: 210.0,
-      limit: 200.0,
-      icon: "Coffee",
-      subItems: [
-        { id: "sub-6", description: "Cena Restaurante", amount: 65.0, date: "Ayer" },
-        { id: "sub-7", description: "Suscripción Streaming", amount: 15.0, date: "03 Aug" },
-      ],
-    },
-    {
-      id: "b-4",
-      name: "Transporte",
-      spent: 85.2,
-      limit: 150.0,
-      icon: "Car",
-      subItems: [{ id: "sub-8", description: "Gasolinera Repsol", amount: 55.0, date: "Ayer" }],
-    },
-    {
-      id: "b-5",
-      name: "Salud & Deporte",
-      spent: 65.0,
-      limit: 120.0,
-      icon: "HeartPulse",
-      subItems: [{ id: "sub-9", description: "Cuota Gimnasio", amount: 45.0, date: "01 Aug" }],
-    },
-    {
-      id: "b-6",
-      name: "Otros Gastos",
-      spent: 120.0,
-      limit: 250.0,
-      icon: "MoreHorizontal",
-      subItems: [{ id: "sub-10", description: "Librería & Material", amount: 35.0, date: "04 Aug" }],
-    },
-  ]);
+  // Presupuestos activados (inicializado con las 6 categorías inmutables del dominio)
+  const [budgets, setBudgets] = useState<BudgetCategory[]>(DEFAULT_SYSTEM_BUDGETS);
 
-  // Transacciones mock de ejemplo
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: "tx-101",
-      merchant: "Mercadona Supermercados",
-      date: "Hoy, 14:32",
-      amount: -42.5,
-      category: "Alimentación",
-      status: "CLEAN",
-    },
-    {
-      id: "tx-102",
-      merchant: "Transferencia Desconocida (Overseas)",
-      date: "Hoy, 11:15",
-      amount: -850.0,
-      category: "Otros",
-      status: "SUSPICIOUS",
-    },
-    {
-      id: "tx-103",
-      merchant: "Gasolinera Repsol",
-      date: "Ayer, 18:40",
-      amount: -55.0,
-      category: "Transporte",
-      status: "CLEAN",
-    },
-    {
-      id: "tx-104",
-      merchant: "Nómina Mensual Empresa",
-      date: "28 Jul, 09:00",
-      amount: 2450.0,
-      category: "Ingreso",
-      status: "CLEAN",
-    },
-    {
-      id: "tx-105",
-      merchant: "Restaurante La Tagliatella",
-      date: "26 Jul, 21:15",
-      amount: -65.0,
-      category: "Ocio & Restauración",
-      status: "CLEAN",
-    },
-  ]);
+  // Transacciones contables registradas en la aplicación
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Estado para el saldo consolidado de la cuenta
-  const [accountBalance, setAccountBalance] = useState<number>(14550.80);
+  const [accountBalance, setAccountBalance] = useState<number>(0.0);
 
   // Cargar datos persistidos desde los microservicios backend y PostgreSQL al montar en cliente
   useEffect(() => {
@@ -518,14 +431,34 @@ export default function DashboardPage() {
         type: "success",
       });
     } catch (err: any) {
-      // Ingesta de demostración rápida
+      // Ingesta de demostración rápida desde sample_bank_statement.csv
       const parsedSampleTxs: Transaction[] = [
         { id: `tx-${Date.now()}-1`, merchant: "Mercadona Supermercados", date: "Hoy", amount: -45.50, category: "Alimentación", status: "CLEAN" },
         { id: `tx-${Date.now()}-2`, merchant: "Iberdrola Clientes", date: "Ayer", amount: -89.20, category: "Vivienda & Servicios", status: "CLEAN" },
         { id: `tx-${Date.now()}-3`, merchant: "Repsol Gasolinera", date: "Hace 2 días", amount: -60.00, category: "Transporte", status: "CLEAN" },
-        { id: `tx-${Date.now()}-4`, merchant: "Nómina Empresa Tech", date: "Hace 5 días", amount: 2450.00, category: "Ingresos", status: "CLEAN" },
+        { id: `tx-${Date.now()}-4`, merchant: "Restaurante El Celler", date: "Hace 3 días", amount: -35.00, category: "Ocio & Restauración", status: "CLEAN" },
+        { id: `tx-${Date.now()}-5`, merchant: "Nómina Empresa Tech", date: "Hace 5 días", amount: 2450.00, category: "Ingresos", status: "CLEAN" },
       ];
       setTransactions((prev) => [...parsedSampleTxs, ...prev]);
+
+      setBudgets((prevBudgets) =>
+        prevBudgets.map((b) => {
+          if (b.name === "Alimentación") {
+            return { ...b, spent: b.spent + 45.50, subItems: [...(b.subItems || []), { id: `tx-${Date.now()}-1`, description: "Mercadona Supermercados", amount: 45.50, date: "Hoy" }] };
+          }
+          if (b.name === "Vivienda & Servicios") {
+            return { ...b, spent: b.spent + 89.20, subItems: [...(b.subItems || []), { id: `tx-${Date.now()}-2`, description: "Iberdrola Clientes", amount: 89.20, date: "Ayer" }] };
+          }
+          if (b.name === "Transporte") {
+            return { ...b, spent: b.spent + 60.00, subItems: [...(b.subItems || []), { id: `tx-${Date.now()}-3`, description: "Repsol Gasolinera", amount: 60.00, date: "Hace 2 días" }] };
+          }
+          if (b.name === "Ocio & Restauración") {
+            return { ...b, spent: b.spent + 35.00, subItems: [...(b.subItems || []), { id: `tx-${Date.now()}-4`, description: "Restaurante El Celler", amount: 35.00, date: "Hace 3 días" }] };
+          }
+          return b;
+        })
+      );
+
       setToastState({
         isOpen: true,
         message: "5 transacciones clasificadas e ingestadas desde sample_bank_statement.csv",
@@ -547,10 +480,9 @@ export default function DashboardPage() {
   // Cálculos consolidados de presupuestos globales
   const totalBudgetSpent = budgets.reduce((acc, curr) => acc + curr.spent, 0);
   const totalBudgetLimit = budgets.reduce((acc, curr) => acc + curr.limit, 0);
-  const globalBudgetPercent = Math.min(
-    Math.round((totalBudgetSpent / totalBudgetLimit) * 100),
-    100
-  );
+  const globalBudgetPercent = totalBudgetLimit > 0
+    ? Math.min(Math.round((totalBudgetSpent / totalBudgetLimit) * 100), 100)
+    : 0;
 
   // Obtener icono gráfico correspondiente por categoría
   const renderCategoryIcon = (iconName: string) => {
@@ -591,12 +523,15 @@ export default function DashboardPage() {
     );
   }
 
+  // Identificar si existe alguna transacción en cuarentena de seguridad activa
+  const suspiciousTx = transactions.find((tx) => tx.status === "SUSPICIOUS");
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-28 md:pb-12 pt-4 transition-colors">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
 
-        {/* 1. Contextual FraudShield Alert Banner */}
-        {!alertDismissed && (
+        {/* 1. Contextual FraudShield Alert Banner (se muestra solo si existe transacción en cuarentena activa) */}
+        {!alertDismissed && suspiciousTx && (
           <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-300/60 bg-amber-500/10 p-4 text-amber-900 dark:border-amber-700/50 dark:text-amber-200 shadow-xs backdrop-blur-xs transition">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
@@ -612,7 +547,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs font-medium text-amber-900/90 dark:text-amber-200/90">
-                  Transacción de <span className="num font-bold">850,00 €</span> retenida en cuarentena por patrón poco habitual.
+                  Transacción de <span className="num font-bold">{Math.abs(suspiciousTx.amount).toFixed(2)} €</span> ({suspiciousTx.merchant}) retenida en cuarentena por patrón poco habitual.
                 </p>
               </div>
             </div>
@@ -684,7 +619,7 @@ export default function DashboardPage() {
                   <span>Balance Total Disponible</span>
                 </div>
                 <div className="mt-1 text-3xl sm:text-4xl font-bold num tracking-tight text-foreground">
-                  14.245,50 €
+                  {accountBalance.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </div>
                 
                 <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">

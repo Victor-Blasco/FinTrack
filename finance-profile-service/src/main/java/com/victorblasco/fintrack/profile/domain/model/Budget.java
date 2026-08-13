@@ -22,10 +22,10 @@ public class Budget {
     @Column(nullable = false, length = 20)
     private Category category;
 
-    @Column(name = "monthly_limit", nullable = false, precision = 15, scale = 2)
+    @Column(name = "monthly_limit", nullable = false, precision = 38, scale = 2)
     private BigDecimal monthlyLimit;
 
-    @Column(name = "accumulated_spend", nullable = false, precision = 15, scale = 2)
+    @Column(name = "accumulated_spend", nullable = false, precision = 38, scale = 2)
     private BigDecimal accumulatedSpend;
 
     public Budget() {}

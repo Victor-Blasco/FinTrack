@@ -13,6 +13,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.converter.RecordMessageConverter;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
@@ -56,36 +58,30 @@ public class KafkaConfig {
      * @return fábrica de consumidores {@link ConsumerFactory}
      */
     @Bean
-    public ConsumerFactory<String, Object> genericConsumerFactory() {
+    public ConsumerFactory<String, String> genericConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 
-        JacksonJsonDeserializer<Object> deserializer = new JacksonJsonDeserializer<>(Object.class);
-        deserializer.addTrustedPackages("com.victorblasco.fintrack.*");
-        deserializer.setUseTypeHeaders(false);
-
-        return new DefaultKafkaConsumerFactory<>(
-                props,
-                new StringDeserializer(),
-                deserializer
-        );
+        return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    /**
-     * Define la fábrica de contenedores oyentes para procesar eventos Kafka en concurrencia con manejo de errores.
-     *
-     * @param errorHandler manejador de errores común de Kafka
-     * @return fábrica de contenedores oyentes {@link ConcurrentKafkaListenerContainerFactory}
-     */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            CommonErrorHandler errorHandler) {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+    public RecordMessageConverter jsonConverter() {
+        return new StringJsonMessageConverter();
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            CommonErrorHandler errorHandler,
+            RecordMessageConverter jsonConverter) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(genericConsumerFactory());
+        factory.setRecordMessageConverter(jsonConverter);
         factory.setCommonErrorHandler(errorHandler);
         return factory;
     }

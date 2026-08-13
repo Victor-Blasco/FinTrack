@@ -23,7 +23,18 @@ public class CategorizedEventConsumer {
 
     @KafkaListener(topics = "categorized-events", groupId = "finance-profile-group")
     public void consume(TransactionCategorizedEvent event) {
-        log.info("Consumiendo evento categorizado [{}] para transacción [{}]", event.category(), event.transactionId());
-        ledgerService.applyCategorization(event);
+        if (event == null || event.transactionId() == null) {
+            log.error("[Kafka Consumer: finance-profile] Recibido evento categorizado NULO o sin ID");
+            return;
+        }
+        log.info("[Kafka Consumer: finance-profile] Recibida categoría [{}] para transacción ID [{}]",
+                event.category(), event.transactionId());
+        try {
+            ledgerService.applyCategorization(event);
+        } catch (Exception e) {
+            log.error("[Kafka Consumer: finance-profile] Error al aplicar categoría ID [{}]: {}",
+                    event.transactionId(), e.getMessage(), e);
+            throw e;
+        }
     }
 }

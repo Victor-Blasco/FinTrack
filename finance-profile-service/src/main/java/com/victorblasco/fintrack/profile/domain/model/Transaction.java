@@ -22,7 +22,7 @@ public class Transaction {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(nullable = false, precision = 38, scale = 2)
     private BigDecimal amount;
 
     @Column(nullable = false, length = 3)

@@ -23,7 +23,18 @@ public class FraudVerdictConsumer {
 
     @KafkaListener(topics = "fraud-verdicts", groupId = "finance-profile-group")
     public void consume(FraudVerdictEvent event) {
-        log.info("Consumiendo veredicto de fraude [{}] para transacción [{}]", event.verdict(), event.transactionId());
-        ledgerService.applyFraudVerdict(event);
+        if (event == null || event.transactionId() == null) {
+            log.error("[Kafka Consumer: finance-profile] Recibido evento veredicto NULO o sin ID");
+            return;
+        }
+        log.info("[Kafka Consumer: finance-profile] Recibido veredicto de fraude [{}] (Score: {}/100) para transacción ID [{}] de usuario [{}]",
+                event.verdict(), event.riskScore(), event.transactionId(), event.userId());
+        try {
+            ledgerService.applyFraudVerdict(event);
+        } catch (Exception e) {
+            log.error("[Kafka Consumer: finance-profile] Error al aplicar veredicto de fraude ID [{}]: {}",
+                    event.transactionId(), e.getMessage(), e);
+            throw e;
+        }
     }
 }

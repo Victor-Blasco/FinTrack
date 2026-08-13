@@ -23,7 +23,18 @@ public class RawTransactionConsumer {
 
     @KafkaListener(topics = "raw-transactions", groupId = "finance-profile-group")
     public void consume(RawTransactionEvent event) {
-        log.info("Consumiendo evento raw-transaction para transactionId [{}]", event.transactionId());
-        ledgerService.processRawTransaction(event);
+        if (event == null || event.transactionId() == null) {
+            log.error("[Kafka Consumer: finance-profile] Recibido evento raw-transaction NULO o sin ID");
+            return;
+        }
+        log.info("[Kafka Consumer: finance-profile] Recibido evento raw-transaction ID [{}] para usuario [{}] (Comercio: {}, Importe: {} {})",
+                event.transactionId(), event.userId(), event.merchant(), event.amount(), event.currency());
+        try {
+            ledgerService.processRawTransaction(event);
+        } catch (Exception e) {
+            log.error("[Kafka Consumer: finance-profile] Error al procesar raw-transaction ID [{}]: {}",
+                    event.transactionId(), e.getMessage(), e);
+            throw e;
+        }
     }
 }

@@ -53,7 +53,7 @@ class LedgerServiceTest {
                 txId, userId, "ES1234", new BigDecimal("150.00"), "EUR", "MERCADONA", Instant.now(), "CSV", "batch-1"
         );
 
-        when(accountRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(accountRepository.findFirstByUserId(userId)).thenReturn(Optional.empty());
         when(accountRepository.save(any(Account.class))).thenAnswer(i -> i.getArgument(0));
 
         ledgerService.processRawTransaction(event);

@@ -72,8 +72,7 @@ public class LedgerServiceImpl implements LedgerService {
             return;
         }
 
-        Account account = accountRepository.findByUserId(event.userId())
-                .orElseGet(() -> accountRepository.save(new Account(event.userId(), "ES00-0000-0000-0000", BigDecimal.ZERO, event.currency())));
+        Account account = getOrCreateAccount(event.userId(), event.currency());
 
         LocalDateTime timestamp = LocalDateTime.ofInstant(event.timestamp(), ZoneOffset.UTC);
         Transaction tx = new Transaction(
@@ -106,8 +105,7 @@ public class LedgerServiceImpl implements LedgerService {
         } else {
             log.warn("Transacción [{}] no encontrada al recibir veredicto. Creando entidad con estado definitivo [{}]",
                     event.transactionId(), event.verdict());
-            Account account = accountRepository.findByUserId(event.userId())
-                    .orElseGet(() -> accountRepository.save(new Account(event.userId(), "ES00-0000-0000-0000", BigDecimal.ZERO, "EUR")));
+            Account account = getOrCreateAccount(event.userId(), "EUR");
 
             LocalDateTime timestamp = event.evaluatedAt() != null ? event.evaluatedAt() : LocalDateTime.now();
             BigDecimal amount = event.amount() != null ? event.amount() : BigDecimal.ZERO;
@@ -175,7 +173,7 @@ public class LedgerServiceImpl implements LedgerService {
     @Override
     @Transactional(readOnly = true)
     public AccountSummaryResponse getAccountSummary(UUID userId) {
-        Account account = accountRepository.findByUserId(userId)
+        Account account = accountRepository.findFirstByUserId(userId)
                 .orElseGet(() -> new Account(userId, "ES00-0000-0000-0000", BigDecimal.ZERO, "EUR"));
 
         return new AccountSummaryResponse(
@@ -185,6 +183,19 @@ public class LedgerServiceImpl implements LedgerService {
                 account.getBalance(),
                 account.getCurrency()
         );
+    }
+
+    private Account getOrCreateAccount(UUID userId, String currency) {
+        Optional<Account> accountOpt = accountRepository.findFirstByUserId(userId);
+        if (accountOpt.isPresent()) {
+            return accountOpt.get();
+        }
+        try {
+            return accountRepository.save(new Account(userId, "ES00-0000-0000-0000", BigDecimal.ZERO, currency != null ? currency : "EUR"));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            return accountRepository.findFirstByUserId(userId)
+                    .orElseThrow(() -> new IllegalStateException("No se pudo obtener ni crear la cuenta para el usuario: " + userId, e));
+        }
     }
 
     /**

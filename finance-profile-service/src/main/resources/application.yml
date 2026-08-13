@@ -33,4 +33,7 @@ management:
 logging:
   level:
     com.victorblasco.fintrack.profile: INFO
-    org.springframework.kafka: INFO
+    org.springframework.security : DEBUG
+    org.springframework.kafka.listener: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN

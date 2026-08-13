@@ -32,3 +32,9 @@ app:
   kafka:
     topics:
       raw-transactions: raw-transactions
+
+logging:
+  level:
+    com.victorblasco.fintrack.ingest: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN

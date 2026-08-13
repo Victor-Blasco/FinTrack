@@ -43,8 +43,8 @@ public class RawTransactionProducer {
      * @param event evento de transacción a publicar
      */
     public void send(RawTransactionEvent event) {
-        log.info("Publicando evento raw-transaction para transactionId={}", event.transactionId());
-        kafkaTemplate.send(topicName, event.transactionId(), event).whenComplete((result, ex) -> {
+        log.info("[Kafka Pipeline] Publicando evento raw-transaction para transactionId={}, userId={}", event.transactionId(), event.userId());
+        kafkaTemplate.send(topicName, event.transactionId().toString(), event).whenComplete((result, ex) -> {
             if (ex != null) {
                 log.error("Fallo al publicar evento raw-transaction para transactionId={}: {}", event.transactionId(), ex.getMessage());
             } else {

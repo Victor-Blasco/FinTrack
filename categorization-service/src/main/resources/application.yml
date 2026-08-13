@@ -21,4 +21,6 @@ management:
 logging:
   level:
     com.victorblasco.fintrack.categorization: INFO
-    org.springframework.kafka: INFO
+    org.springframework.kafka.listener: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN

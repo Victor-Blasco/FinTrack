@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Servicio de negocio para procesar webhooks de transacciones en tiempo real en formato PSD2.
  * Mapea las peticiones recibidas hacia eventos {@link RawTransactionEvent} y los transmite a Kafka.
@@ -35,10 +37,20 @@ public class WebhookIngestService {
      * @param payload objeto DTO con la información de la transacción recibida
      */
     public void processWebhook(TransactionWebhookPayload payload) {
-        log.info("Procesando webhook PSD2 para transacción {}", payload.transactionId());
+        log.info("[Kafka Pipeline] Procesando webhook PSD2 para transacción {}", payload.transactionId());
+
+        UUID txUuid;
+        try {
+            txUuid = UUID.fromString(payload.transactionId());
+        } catch (Exception e) {
+            txUuid = UUID.nameUUIDFromBytes(payload.transactionId().getBytes());
+        }
+
+        UUID defaultUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
         RawTransactionEvent event = new RawTransactionEvent(
-                payload.transactionId(),
+                txUuid,
+                defaultUserUuid,
                 payload.accountNumber(),
                 payload.amount(),
                 payload.currency(),

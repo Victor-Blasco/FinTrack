@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.UUID;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
@@ -131,7 +132,15 @@ public class CsvIngestService {
             for (CSVRecord record : csvParser) {
                 rowNumber++;
                 try {
-                    String transactionId = record.get("transactionId");
+                    String transactionIdStr = record.get("transactionId");
+                    UUID txUuid;
+                    try {
+                        txUuid = UUID.fromString(transactionIdStr);
+                    } catch (Exception e) {
+                        txUuid = UUID.nameUUIDFromBytes(transactionIdStr.getBytes());
+                    }
+
+                    UUID defaultUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001");
                     String accountNumber = record.get("accountNumber");
                     BigDecimal amount = new BigDecimal(record.get("amount"));
                     String currency = record.get("currency");
@@ -139,7 +148,8 @@ public class CsvIngestService {
                     Instant timestamp = Instant.parse(record.get("timestamp"));
 
                     RawTransactionEvent event = new RawTransactionEvent(
-                            transactionId,
+                            txUuid,
+                            defaultUserUuid,
                             accountNumber,
                             amount,
                             currency,

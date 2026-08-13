@@ -46,12 +46,8 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.message || "Credenciales incorrectas. Verifica tu email y contraseña.");
       } else {
-        const token = data.token || data.accessToken;
-        if (token) {
-          localStorage.setItem("accessToken", token);
-        }
         localStorage.setItem("userEmail", email);
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
     } catch {
       setError("No se pudo conectar con el servicio de autenticación. Inténtalo de nuevo.");

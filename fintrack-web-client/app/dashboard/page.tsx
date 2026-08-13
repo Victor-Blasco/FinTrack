@@ -161,12 +161,24 @@ export default function DashboardPage() {
   // Cargar datos persistidos desde PostgreSQL / microservicios o sesión local al montar
   useEffect(() => {
     async function loadBackendData() {
+      const storedEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
+      if (storedEmail) setEmail(storedEmail);
+
       try {
         const [summaryRes, budgetsRes, txsRes] = await Promise.allSettled([
           finTrackApi.getAccountSummary(),
           finTrackApi.getBudgets(),
           finTrackApi.getTransactions(),
         ]);
+
+        // Si todas las llamadas rebotan con error de autenticación, redirigir al login
+        const allUnauthorized = [summaryRes, budgetsRes, txsRes].every(
+          (res) => res.status === "rejected" && res.reason?.message?.includes("401")
+        );
+        if (allUnauthorized) {
+          router.push("/login");
+          return;
+        }
 
         if (summaryRes.status === "fulfilled" && summaryRes.value) {
           setAccountBalance(summaryRes.value.balance);
@@ -228,15 +240,6 @@ export default function DashboardPage() {
       }
     }
 
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    const storedEmail = localStorage.getItem("userEmail");
-    if (storedEmail) setEmail(storedEmail);
-
     loadBackendData();
   }, [router]);
 
@@ -261,10 +264,12 @@ export default function DashboardPage() {
   }, [transactions, isLoaded]);
 
   /**
-   * Maneja el cierre de sesión eliminando las credenciales del almacenamiento local.
+   * Maneja el cierre de sesión destruyendo la cookie HttpOnly a través del BFF Route Handler.
    */
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+    } catch (ignored) {}
     localStorage.removeItem("userEmail");
     router.push("/login");
   };
@@ -279,52 +284,51 @@ export default function DashboardPage() {
   };
 
   /**
-   * Registra un nuevo gasto ingresado desde el modal Bottom Sheet.
+   * Registra un nuevo gasto ingresado desde el modal Bottom Sheet enviándolo a la tubería de ingesta en Kafka.
    *
    * @param e - Evento del formulario React
    */
-  const handleAddExpenseSubmit = (e: React.FormEvent) => {
+  const handleAddExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMerchant || !newAmount) return;
 
     const parsedAmount = parseFloat(newAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
+    let txId = `tx-man-${Date.now()}`;
+    let isBackendActive = true;
+
+    try {
+      const response = await finTrackApi.ingestManualTransaction(newMerchant, parsedAmount);
+      if (response?.transactionId) {
+        txId = response.transactionId;
+      }
+    } catch (err) {
+      console.warn("Modo offline / Sincronización local interactiva:", err);
+      isBackendActive = false;
+    }
+
     const newTx: Transaction = {
-      id: `tx-${Date.now()}`,
+      id: txId,
       merchant: newMerchant,
       date: "Justo ahora",
       amount: -parsedAmount,
-      category: newCategory,
-      status: "CLEAN",
+      category: "Procesando...",
+      status: "PENDING",
     };
 
     setTransactions((prev) => [newTx, ...prev]);
-
-    // Actualizar el gastado acumulado de la categoría seleccionada
-    setBudgets((prevBudgets) =>
-      prevBudgets.map((b) => {
-        if (b.name === newCategory) {
-          return {
-            ...b,
-            spent: b.spent + parsedAmount,
-            subItems: [
-              ...(b.subItems || []),
-              { id: newTx.id, description: newMerchant, amount: parsedAmount, date: "Justo ahora" },
-            ],
-          };
-        }
-        return b;
-      })
-    );
 
     // Limpiar formulario y cerrar modal
     setNewMerchant("");
     setNewAmount("");
     setActiveModal("NONE");
+
     setToastState({
       isOpen: true,
-      message: `Gasto de ${parsedAmount.toFixed(2)} € registrado con éxito`,
+      message: isBackendActive
+        ? `Gasto de ${parsedAmount.toFixed(2)} € enviado a clasificación en Kafka`
+        : `Gasto de ${parsedAmount.toFixed(2)} € registrado (modo local)`,
       type: "success",
     });
   };
@@ -478,7 +482,8 @@ export default function DashboardPage() {
         message: res.message || "Extracto CSV enviado para clasificación automática en Kafka",
         type: "success",
       });
-    } catch (err: any) {
+    } catch (error) {
+      console.warn("Procesando muestra local CSV por desconexión:", error);
       // Ingesta de demostración rápida desde sample_bank_statement.csv
       const parsedSampleTxs: Transaction[] = [
         { id: `tx-${Date.now()}-1`, merchant: "Mercadona Supermercados", date: "Hoy", amount: -45.50, category: "Alimentación", status: "CLEAN" },
@@ -1098,21 +1103,6 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-foreground mb-1">Categoría</label>
-            <select
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {budgets.map((b) => (
-                <option key={b.id} value={b.name}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="pt-2">
             <button
               type="submit"
@@ -1140,7 +1130,7 @@ export default function DashboardPage() {
             className="cursor-pointer flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 hover:border-primary hover:bg-primary/10 transition group"
           >
             <FileSpreadsheet className="h-10 w-10 text-primary group-hover:scale-110 transition mb-2" />
-            <span className="text-xs font-bold text-foreground">Procesar "sample_bank_statement.csv"</span>
+            <span className="text-xs font-bold text-foreground">Procesar &quot;sample_bank_statement.csv&quot;</span>
             <span className="mt-1 text-[11px] text-muted-foreground font-medium">Haz clic aquí para ingestar el extracto bancario de prueba</span>
           </div>
 

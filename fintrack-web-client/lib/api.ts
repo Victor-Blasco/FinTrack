@@ -1,8 +1,7 @@
 /**
- * Módulo de cliente HTTP tipado para la interacción Full-Stack con los microservicios de FinTrack.
+ * Módulo cliente HTTP minimalista para la interacción Full-Stack con FinTrack.
  * <p>
- * Se encarga de realizar las peticiones asíncronas hacia el middleware Proxy BFF (`/api/v1/`),
- * inyectando automáticamente la cabecera `Authorization: Bearer <token>` obtenida desde `localStorage`.
+ * El navegador adjunta automáticamente las cookies HttpOnly en cada petición.
  * </p>
  *
  * @author Victor Blasco
@@ -45,131 +44,105 @@ export interface ApiTransactionResponse {
 }
 
 /**
- * Función auxiliar interna para construir las cabeceras HTTP con token de autenticación.
+ * Ejecuta una petición HTTP genérica hacia la pasarela BFF.
  */
-function getAuthHeaders(): HeadersInit {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+async function fetchApi<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  });
+
+  if (!res.ok) {
+    let errorMessage = `Error HTTP ${res.status}: ${res.statusText}`;
+    try {
+      const errorJson = await res.json();
+      if (errorJson.message) errorMessage = errorJson.message;
+    } catch {}
+    throw new Error(errorMessage);
   }
-  return headers;
+
+  return res.json();
 }
 
 /**
- * Cliente de API tipado para comunicarse con la arquitectura de microservicios de FinTrack.
+ * Cliente de API tipado para comunicarse con la pasarela BFF de FinTrack.
  */
 export const finTrackApi = {
   /**
-   * Obtiene el resumen de la cuenta bancaria y saldo acumulado del usuario.
-   *
-   * @returns Promesa con los datos de {@link ApiAccountSummary}
+   * Obtiene el resumen de la cuenta bancaria.
    */
   async getAccountSummary(): Promise<ApiAccountSummary> {
-    const res = await fetch("/api/v1/accounts/summary", {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(`Error al obtener el resumen de cuenta: ${res.statusText}`);
-    }
-    return res.json();
+    return fetchApi<ApiAccountSummary>("/api/v1/accounts/summary");
   },
 
   /**
-   * Obtiene la lista de presupuestos y consumos por categoría del usuario.
-   *
-   * @returns Promesa con el arreglo de {@link ApiBudgetResponse}
+   * Obtiene la lista de presupuestos por categoría.
    */
   async getBudgets(): Promise<ApiBudgetResponse[]> {
-    const res = await fetch("/api/v1/budgets", {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(`Error al obtener presupuestos: ${res.statusText}`);
-    }
-    return res.json();
+    return fetchApi<ApiBudgetResponse[]>("/api/v1/budgets");
   },
 
   /**
-   * Crea un nuevo presupuesto o actualiza el límite mensual existente para una categoría.
-   *
-   * @param category - Nombre de la categoría de gasto
-   * @param monthlyLimit - Límite mensual configurado
-   * @returns Promesa con la respuesta {@link ApiBudgetResponse}
+   * Obtiene el historial de movimientos financieros.
+   */
+  async getTransactions(): Promise<ApiTransactionResponse[]> {
+    return fetchApi<ApiTransactionResponse[]>("/api/v1/transactions");
+  },
+
+  /**
+   * Crea o actualiza un presupuesto mensual por categoría.
    */
   async createBudget(category: string, monthlyLimit: number): Promise<ApiBudgetResponse> {
-    const res = await fetch("/api/v1/budgets", {
+    return fetchApi<ApiBudgetResponse>("/api/v1/budgets", {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify({
         category: category.toUpperCase().replace(/\s+/g, "_"),
         monthlyLimit,
       }),
     });
-    if (!res.ok) {
-      throw new Error(`Error al crear presupuesto: ${res.statusText}`);
-    }
-    return res.json();
   },
 
   /**
-   * Elimina una categoría de presupuesto personalizada por su ID.
-   *
-   * @param id - Identificador único del presupuesto a eliminar
+   * Elimina un presupuesto por su ID.
    */
   async deleteBudget(id: string): Promise<void> {
-    const res = await fetch(`/api/v1/budgets/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(`Error al eliminar presupuesto: ${res.statusText}`);
-    }
+    await fetchApi<void>(`/api/v1/budgets/${id}`, { method: "DELETE" });
   },
 
   /**
-   * Obtiene el historial ordenado de movimientos financieros del usuario.
-   *
-   * @returns Promesa con el arreglo de {@link ApiTransactionResponse}
-   */
-  async getTransactions(): Promise<ApiTransactionResponse[]> {
-    const res = await fetch("/api/v1/transactions", {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(`Error al obtener transacciones: ${res.statusText}`);
-    }
-    return res.json();
-  },
-
-  /**
-   * Envía un extracto bancario CSV a `banking-ingest-service` para su procesamiento asíncrono en Kafka.
-   *
-   * @param file - Archivo CSV seleccionado
-   * @returns Promesa indicando el resultado del envío
+   * Envía un extracto bancario CSV a ingesta.
    */
   async uploadCsvStatement(file: File): Promise<{ success: boolean; message: string }> {
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
     const formData = new FormData();
     formData.append("file", file);
 
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     const res = await fetch("/api/v1/ingest/csv", {
       method: "POST",
-      headers,
       body: formData,
     });
-
-    if (!res.ok) {
-      throw new Error(`Error al subir extracto CSV: ${res.statusText}`);
-    }
-
     return res.json();
+  },
+
+  /**
+   * Envía un gasto manual a banking-ingest-service para clasificación asíncrona.
+   */
+  async ingestManualTransaction(
+    merchant: string,
+    amount: number
+  ): Promise<{ transactionId: string; status: string; merchant: string; amount: number }> {
+    return fetchApi<{ transactionId: string; status: string; merchant: string; amount: number }>(
+      "/api/v1/ingest/transaction",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          merchant,
+          amount,
+          currency: "EUR",
+        }),
+      }
+    );
   },
 };

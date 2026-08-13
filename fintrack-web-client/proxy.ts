@@ -1,140 +1,138 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify, base64url } from 'jose'
 
-/**
- * Middleware de la API Gateway / Backend-For-Frontend (BFF) en Next.js.
- * <p>
- * Se encarga de interceptar y enrutar las peticiones entrantes bajo `/api/v1/`:
- * 1. Redirecciona las rutas de autenticación pública (`/register`, `/login`) hacia `auth-service` (Puerto 8081).
- * 2. Valida los tokens Bearer JWT de los endpoints protegidos consultando a `auth-service`.
- * 3. Inyecta la cabecera `X-User-Id` con la identidad verificada del usuario.
- * 4. Realiza la reescritura de proxy inverso (Reverse Proxy) hacia los microservicios destino:
- *    - `/api/v1/accounts` y `/api/v1/budgets` -> `finance-profile-service` (Puerto 8083).
- *    - `/api/v1/ingest` -> `banking-ingest-service` (Puerto 8082).
- * </p>
- *
- * @param request petición HTTP entrante {@link NextRequest}
- * @returns {@link NextResponse} con reescritura de proxy, respuesta JSON de error 401/500 o paso directo
- */
-export async function proxy(request: NextRequest) {
-  const url = request.nextUrl.clone()
-  const { pathname } = url
+const RAW_PRIMARY_SECRET = process.env.JWT_SECRET || 'dGhpcy1pcy1hLXZlcnktc2VjdXJlLXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLXF1YW50dW0tZnJhdWQtc2hpZWxk'
+const PRIMARY_SECRET_BYTES = new TextEncoder().encode(RAW_PRIMARY_SECRET)
 
-  // 1. Redireccionar solicitudes públicas de autenticación al puerto 8081
-  if (pathname.startsWith('/api/v1/auth/register') || pathname.startsWith('/api/v1/auth/login')) {
-    const targetUrl = new URL(pathname, 'http://localhost:8081')
-    return NextResponse.rewrite(targetUrl)
-  }
+let PRIMARY_BASE64_BYTES: Uint8Array | null = null
+try {
+  PRIMARY_BASE64_BYTES = base64url.decode(RAW_PRIMARY_SECRET)
+} catch {
+  // Ignorar si no es Base64
+}
 
-  // 2. Validar token para los endpoints protegidos
-  if (
-    pathname.startsWith('/api/v1/accounts') ||
-    pathname.startsWith('/api/v1/budgets') ||
-    pathname.startsWith('/api/v1/transactions') ||
-    pathname.startsWith('/api/v1/ingest')
-  ) {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, message: 'Missing or invalid Authorization header' },
-        { status: 401 }
-      )
-    }
+const FALLBACK_SECRET_BYTES = new TextEncoder().encode('defaultSecretKeyThatIsAtLeast32BytesLongForHmacSha256!')
 
-    try {
-      // Validar token llamando al endpoint interno de auth-service
-      const rawToken = authHeader.replace(/^Bearer\s+/, '')
-      const validateRes = await fetch(`http://localhost:8081/api/v1/auth/validate?token=${encodeURIComponent(rawToken)}`, {
-        method: 'POST'
-      })
+const SERVICE_ROUTES = [
+  { prefix: '/api/v1/auth', targetUrl: 'http://localhost:8081' },
+  { prefix: '/api/v1/ingest', targetUrl: 'http://localhost:8082' },
+  { prefix: '/api/v1/accounts', targetUrl: 'http://localhost:8083' },
+  { prefix: '/api/v1/budgets', targetUrl: 'http://localhost:8083' },
+  { prefix: '/api/v1/transactions', targetUrl: 'http://localhost:8083' },
+]
 
-      if (!validateRes.ok) {
-        return NextResponse.json(
-          { success: false, message: 'Invalid or expired token' },
-          { status: 401 }
-        )
-      }
-
-      const valData = await validateRes.json()
-      const userId = valData.userId
-
-      if (!userId) {
-        return NextResponse.json(
-          { success: false, message: 'User ID missing in validation response' },
-          { status: 401 }
-        )
-      }
-
-      // Clonar cabeceras, eliminar X-User-Id malicioso enviado por el cliente e inyectar el verificado
-      const requestHeaders = new Headers(request.headers)
-      requestHeaders.delete('x-user-id')
-      requestHeaders.set('X-User-Id', userId)
-
-      // Identificar el microservicio destino
-      let targetServiceUrl = ''
-      if (
-        pathname.startsWith('/api/v1/accounts') ||
-        pathname.startsWith('/api/v1/budgets') ||
-        pathname.startsWith('/api/v1/transactions')
-      ) {
-        targetServiceUrl = 'http://localhost:8083' // finance-profile-service
-      } else if (pathname.startsWith('/api/v1/ingest')) {
-        targetServiceUrl = 'http://localhost:8082' // banking-ingest-service
-      }
-
-      const targetUrl = new URL(pathname, targetServiceUrl)
-      
-      // Realizar la petición HTTP desde el servidor Node para capturar la desconexión limpiamente
+async function getVerifiedUserId(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, PRIMARY_SECRET_BYTES)
+    return typeof payload.sub === 'string' ? payload.sub : null
+  } catch {
+    if (PRIMARY_BASE64_BYTES) {
       try {
-        const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.blob()
-        const backendRes = await fetch(targetUrl.toString(), {
-          method: request.method,
-          headers: requestHeaders,
-          body,
-        })
-
-        const responseData = await backendRes.blob()
-        const responseHeaders = new Headers(backendRes.headers)
-        responseHeaders.delete('www-authenticate')
-
-        return new NextResponse(responseData, {
-          status: backendRes.status,
-          statusText: backendRes.statusText,
-          headers: responseHeaders,
-        })
-      } catch (targetErr: any) {
-        console.warn(`[Proxy Bypassed] El servicio ${targetServiceUrl} está apagado. Operando con sincronización local.`);
-        return NextResponse.json(
-          { success: false, message: `Microservicio ${targetServiceUrl} no disponible` },
-          { status: 503 }
-        )
-      }
-
-    } catch (error: any) {
-      // Si auth-service (8081) o los microservicios están apagados, responder limpiamente sin romper el cliente
-      const isConnectionRefused = error?.code === 'ECONNREFUSED' || error?.cause?.code === 'ECONNREFUSED';
-      if (isConnectionRefused) {
-        console.warn('Microservicio backend desconectado (ECONNREFUSED). Operando en modo cliente.');
-        return NextResponse.json(
-          { success: false, message: 'Servicio backend no disponible temporalmente' },
-          { status: 503 }
-        )
-      }
-
-      console.error('Error procesando proxy en middleware:', error)
-      return NextResponse.json(
-        { success: false, message: 'Error interno en la pasarela de la API' },
-        { status: 500 }
-      )
+        const { payload } = await jwtVerify(token, PRIMARY_BASE64_BYTES)
+        return typeof payload.sub === 'string' ? payload.sub : null
+      } catch {}
+    }
+    try {
+      const { payload } = await jwtVerify(token, FALLBACK_SECRET_BYTES)
+      return typeof payload.sub === 'string' ? payload.sub : null
+    } catch {
+      return null
     }
   }
-
-  return NextResponse.next()
 }
 
 /**
- * Configuración de patrones de ruta coincidentes para activar el middleware.
+ * Extrae el token prioritariamente de las Cookies HttpOnly y, si no existe, de la cabecera Authorization.
  */
+function extractToken(request: NextRequest): string | null {
+  // 1. Prioridad: Cookie HttpOnly
+  const cookieToken = request.cookies.get('accessToken')?.value
+  if (cookieToken && cookieToken.trim()) {
+    return cookieToken.trim().replace(/^["']|["']$/g, '')
+  }
+
+  // 2. Fallback: Cabecera Authorization
+  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
+  if (authHeader && authHeader.trim()) {
+    let token = authHeader.trim()
+    if (token.toLowerCase().startsWith('bearer ')) {
+      token = token.substring(7).trim()
+    }
+    return token.replace(/^["']|["']$/g, '')
+  }
+
+  return null
+}
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Dejar pasar peticiones públicas de auth manejadas por Next.js Route Handlers o auth-service directo
+  if (pathname.startsWith('/api/v1/auth/login') || pathname.startsWith('/api/v1/auth/register') || pathname.startsWith('/api/v1/auth/logout')) {
+    return NextResponse.next()
+  }
+
+  const matchedRoute = SERVICE_ROUTES.find(
+    (route) => route.prefix !== '/api/v1/auth' && pathname.startsWith(route.prefix)
+  )
+
+  if (!matchedRoute) {
+    return NextResponse.next()
+  }
+
+  // Extracción limpia desde Cookie / Header
+  const rawToken = extractToken(request)
+  if (!rawToken) {
+    return NextResponse.json(
+      { success: false, message: 'No autenticado. Sesión no encontrada.' },
+      { status: 401 }
+    )
+  }
+
+  const userId = await getVerifiedUserId(rawToken)
+
+  if (!userId) {
+    return NextResponse.json(
+      { success: false, message: 'Token de acceso inválido o expirado' },
+      { status: 401 }
+    )
+  }
+
+  // Inyectar cabeceras para el microservicio backend
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('Authorization', `Bearer ${rawToken}`)
+  requestHeaders.set('X-User-Id', userId)
+
+  const targetUrl = new URL(pathname, matchedRoute.targetUrl)
+
+  try {
+    const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.blob()
+    const backendRes = await fetch(targetUrl.toString(), {
+      method: request.method,
+      headers: requestHeaders,
+      body,
+    })
+
+    const responseData = await backendRes.blob()
+    const responseHeaders = new Headers(backendRes.headers)
+    responseHeaders.delete('www-authenticate')
+
+    return new NextResponse(responseData, {
+      status: backendRes.status,
+      statusText: backendRes.statusText,
+      headers: responseHeaders,
+    })
+  } catch (targetErr) {
+    return NextResponse.json(
+      { success: false, message: `Microservicio en ${matchedRoute.targetUrl} no disponible` },
+      { status: 503 }
+    )
+  }
+}
+
+export default proxy
+
 export const config = {
   matcher: ['/api/v1/:path*'],
 }

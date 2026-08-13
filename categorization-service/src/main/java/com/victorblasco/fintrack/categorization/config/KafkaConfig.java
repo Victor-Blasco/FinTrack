@@ -51,13 +51,15 @@ public class KafkaConfig {
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JacksonJsonDeserializer.class);
-        props.put(JacksonJsonDeserializer.TRUSTED_PACKAGES, "com.victorblasco.fintrack.*");
+
+        JacksonJsonDeserializer<FraudVerdictEvent> deserializer = new JacksonJsonDeserializer<>(FraudVerdictEvent.class);
+        deserializer.addTrustedPackages("com.victorblasco.fintrack.*");
+        deserializer.setUseTypeHeaders(false);
 
         return new DefaultKafkaConsumerFactory<>(
                 props,
                 new StringDeserializer(),
-                new JacksonJsonDeserializer<>(FraudVerdictEvent.class)
+                deserializer
         );
     }
 

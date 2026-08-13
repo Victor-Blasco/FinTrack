@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class FraudRuleEngineImpl implements FraudRuleEngine {
 
     private static final BigDecimal HIGH_AMOUNT_THRESHOLD = new BigDecimal("2000.00");
+    private static final BigDecimal EXTREME_AMOUNT_THRESHOLD = new BigDecimal("10000.00");
     private static final int FREQUENCY_WINDOW_SECONDS = 60;
     private static final int FREQUENCY_MAX_TRANSACTIONS = 3;
     private static final int RISK_THRESHOLD = 50;
@@ -92,10 +93,16 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
             reasons.add(FraudReason.OFF_HOURS_ACTIVITY);
         }
 
-        // 4. Anomalía de Importe Muy Elevado (> 2.000,00 EUR)
-        if (event.amount() != null && event.amount().compareTo(HIGH_AMOUNT_THRESHOLD) > 0) {
-            riskScore += 30;
-            reasons.add(FraudReason.HIGH_AMOUNT_ANOMALY);
+        // 4. Anomalía de Importe Muy Elevado (Evaluación con Valor Absoluto)
+        if (event.amount() != null) {
+            BigDecimal absAmount = event.amount().abs();
+            if (absAmount.compareTo(EXTREME_AMOUNT_THRESHOLD) > 0) {
+                riskScore += 50;
+                reasons.add(FraudReason.HIGH_AMOUNT_ANOMALY);
+            } else if (absAmount.compareTo(HIGH_AMOUNT_THRESHOLD) > 0) {
+                riskScore += 30;
+                reasons.add(FraudReason.HIGH_AMOUNT_ANOMALY);
+            }
         }
 
         Verdict verdict = (riskScore >= RISK_THRESHOLD) ? Verdict.SUSPICIOUS : Verdict.CLEAN;

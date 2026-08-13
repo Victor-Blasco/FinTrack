@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -39,8 +40,10 @@ public class FraudVerdictConsumerTest {
         FraudVerdictEvent suspiciousEvent = new FraudVerdictEvent(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
+                new BigDecimal("-50.00"),
                 "CASINO OVERSEAS",
                 Verdict.SUSPICIOUS,
+                50,
                 List.of("HIGH_RISK_MERCHANT"),
                 LocalDateTime.now()
         );
@@ -60,8 +63,10 @@ public class FraudVerdictConsumerTest {
         FraudVerdictEvent nullVerdictEvent = new FraudVerdictEvent(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
+                new BigDecimal("-50.00"),
                 "MERCHANT",
                 null,
+                0,
                 List.of(),
                 LocalDateTime.now()
         );
@@ -78,8 +83,10 @@ public class FraudVerdictConsumerTest {
         FraudVerdictEvent cleanEvent = new FraudVerdictEvent(
                 transactionId,
                 UUID.randomUUID(),
+                new BigDecimal("-50.00"),
                 "MERCADONA S.A.",
                 Verdict.CLEAN,
+                0,
                 List.of(),
                 LocalDateTime.now()
         );

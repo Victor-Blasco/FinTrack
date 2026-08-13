@@ -57,6 +57,21 @@ public class LedgerServiceImpl implements LedgerService {
     @Override
     @Transactional
     public void processRawTransaction(RawTransactionEvent event) {
+        Optional<Transaction> existingTx = transactionRepository.findById(event.transactionId());
+        if (existingTx.isPresent()) {
+            Transaction tx = existingTx.get();
+            log.info("La transacción [{}] ya fue registrada por veredicto con estado [{}]. Actualizando datos contables.",
+                    event.transactionId(), tx.getStatus());
+            if (event.amount() != null) {
+                tx.setAmount(event.amount());
+            }
+            if (event.merchant() != null && !event.merchant().isBlank()) {
+                tx.setMerchant(event.merchant());
+            }
+            transactionRepository.save(tx);
+            return;
+        }
+
         Account account = accountRepository.findByUserId(event.userId())
                 .orElseGet(() -> accountRepository.save(new Account(event.userId(), "ES00-0000-0000-0000", BigDecimal.ZERO, event.currency())));
 
@@ -84,16 +99,39 @@ public class LedgerServiceImpl implements LedgerService {
     @Transactional
     public void applyFraudVerdict(FraudVerdictEvent event) {
         Optional<Transaction> txOpt = transactionRepository.findById(event.transactionId());
-        if (txOpt.isEmpty()) {
-            log.warn("Transacción [{}] no encontrada para aplicar veredicto", event.transactionId());
-            return;
+        Transaction tx;
+
+        if (txOpt.isPresent()) {
+            tx = txOpt.get();
+        } else {
+            log.warn("Transacción [{}] no encontrada al recibir veredicto. Creando entidad con estado definitivo [{}]",
+                    event.transactionId(), event.verdict());
+            Account account = accountRepository.findByUserId(event.userId())
+                    .orElseGet(() -> accountRepository.save(new Account(event.userId(), "ES00-0000-0000-0000", BigDecimal.ZERO, "EUR")));
+
+            LocalDateTime timestamp = event.evaluatedAt() != null ? event.evaluatedAt() : LocalDateTime.now();
+            BigDecimal amount = event.amount() != null ? event.amount() : BigDecimal.ZERO;
+            String merchant = event.merchant() != null ? event.merchant() : "Desconocido";
+
+            tx = new Transaction(
+                    event.transactionId(),
+                    account,
+                    event.userId(),
+                    amount,
+                    account.getCurrency(),
+                    merchant,
+                    Status.PENDING,
+                    Category.UNASSIGNED,
+                    timestamp
+            );
         }
 
-        Transaction tx = txOpt.get();
         if ("CLEAN".equalsIgnoreCase(event.verdict())) {
             tx.setStatus(Status.PROCESSED);
-            accountRepository.updateBalanceAtomic(tx.getAccount().getId(), tx.getAmount());
-            budgetService.applyExpenseToBudget(tx.getUserId(), tx.getCategory(), tx.getAmount());
+            if (tx.getAmount() != null && tx.getAmount().compareTo(BigDecimal.ZERO) != 0) {
+                accountRepository.updateBalanceAtomic(tx.getAccount().getId(), tx.getAmount());
+                budgetService.applyExpenseToBudget(tx.getUserId(), tx.getCategory(), tx.getAmount());
+            }
             log.info("Veredicto CLEAN aplicado a transacción [{}]", tx.getId());
         } else {
             tx.setStatus(Status.QUARANTINED);

@@ -331,6 +331,31 @@ export default function DashboardPage() {
         : `Gasto de ${parsedAmount.toFixed(2)} € registrado (modo local)`,
       type: "success",
     });
+
+    if (isBackendActive) {
+      setTimeout(async () => {
+        try {
+          const [summaryRes, txsRes] = await Promise.allSettled([
+            finTrackApi.getAccountSummary(),
+            finTrackApi.getTransactions(),
+          ]);
+          if (summaryRes.status === "fulfilled" && summaryRes.value) {
+            setAccountBalance(summaryRes.value.balance);
+          }
+          if (txsRes.status === "fulfilled" && txsRes.value && txsRes.value.length > 0) {
+            const updatedTxs: Transaction[] = txsRes.value.map((t) => ({
+              id: t.id,
+              merchant: t.merchant,
+              date: t.timestamp ? new Date(t.timestamp).toLocaleDateString("es-ES") : "Hoy",
+              amount: t.amount,
+              category: t.category,
+              status: t.status === "QUARANTINED" ? "SUSPICIOUS" : t.status === "PROCESSED" ? "CLEAN" : "PENDING",
+            }));
+            setTransactions(updatedTxs);
+          }
+        } catch (ignored) {}
+      }, 1800);
+    }
   };
 
   /**

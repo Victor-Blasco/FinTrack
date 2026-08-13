@@ -2,6 +2,7 @@ package com.victorblasco.fintrack.categorization.event;
 
 import com.victorblasco.fintrack.categorization.domain.Verdict;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,8 +20,10 @@ import java.util.UUID;
 public record FraudVerdictEvent(
         UUID transactionId,
         UUID userId,
+        BigDecimal amount,
         String merchant,
         Verdict verdict,
+        int riskScore,
         List<String> reasons,
         LocalDateTime evaluatedAt
 ) {

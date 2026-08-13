@@ -82,7 +82,7 @@ class LedgerServiceTest {
 
         when(transactionRepository.findById(txId)).thenReturn(Optional.of(tx));
 
-        FraudVerdictEvent event = new FraudVerdictEvent(txId, userId, "ZARA", "CLEAN", List.of(), LocalDateTime.now());
+        FraudVerdictEvent event = new FraudVerdictEvent(txId, userId, new BigDecimal("100.00"), "ZARA", "CLEAN", 0, List.of(), LocalDateTime.now());
         ledgerService.applyFraudVerdict(event);
 
         assertThat(tx.getStatus()).isEqualTo(Status.PROCESSED);
@@ -104,7 +104,7 @@ class LedgerServiceTest {
 
         when(transactionRepository.findById(txId)).thenReturn(Optional.of(tx));
 
-        FraudVerdictEvent event = new FraudVerdictEvent(txId, userId, "CASINO", "SUSPICIOUS", List.of("HIGH_AMOUNT"), LocalDateTime.now());
+        FraudVerdictEvent event = new FraudVerdictEvent(txId, userId, new BigDecimal("2500.00"), "CASINO", "SUSPICIOUS", 50, List.of("HIGH_AMOUNT"), LocalDateTime.now());
         ledgerService.applyFraudVerdict(event);
 
         assertThat(tx.getStatus()).isEqualTo(Status.QUARANTINED);

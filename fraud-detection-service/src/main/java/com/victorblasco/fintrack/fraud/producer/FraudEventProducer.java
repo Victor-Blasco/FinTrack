@@ -43,8 +43,8 @@ public class FraudEventProducer {
      * @param event evento de veredicto {@link FraudVerdictEvent}
      */
     public void sendVerdict(FraudVerdictEvent event) {
-        log.info("Publicando veredicto de fraude [{}] para transacción [{}] del usuario [{}]",
-                event.verdict(), event.transactionId(), event.userId());
+        log.info("Publicando veredicto de fraude [{}] (puntuación: {}/100) para transacción [{}] del usuario [{}]",
+                event.verdict(), event.riskScore(), event.transactionId(), event.userId());
         verdictKafkaTemplate.send(TOPIC_VERDICTS, event.transactionId().toString(), event)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {

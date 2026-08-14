@@ -54,7 +54,9 @@ export default function AddExpenseModal({
       status: "PENDING",
     };
 
+    // Actualización reactiva instantánea en memoria
     setTransactions((prev) => [newTx, ...prev]);
+    setAccountBalance((prev) => Number((prev - parsedAmount).toFixed(2)));
     setNewMerchant("");
     setNewAmount("");
     onClose();
@@ -62,35 +64,10 @@ export default function AddExpenseModal({
     setToast({
       isOpen: true,
       message: isBackendActive
-        ? `Gasto de ${parsedAmount.toFixed(2)} € enviado a clasificación en Kafka`
+        ? `Gasto de ${parsedAmount.toFixed(2)} € enviado a clasificación en tiempo real`
         : `Gasto de ${parsedAmount.toFixed(2)} € registrado (modo local)`,
       type: "success",
     });
-
-    if (isBackendActive) {
-      setTimeout(async () => {
-        try {
-          const [summaryRes, txsRes] = await Promise.allSettled([
-            finTrackApi.getAccountSummary(),
-            finTrackApi.getTransactions(),
-          ]);
-          if (summaryRes.status === "fulfilled" && summaryRes.value) {
-            setAccountBalance(summaryRes.value.balance);
-          }
-          if (txsRes.status === "fulfilled" && txsRes.value && txsRes.value.length > 0) {
-            const updatedTxs: Transaction[] = txsRes.value.map((t) => ({
-              id: t.id,
-              merchant: t.merchant,
-              date: t.timestamp ? new Date(t.timestamp).toLocaleDateString("es-ES") : "Hoy",
-              amount: t.amount,
-              category: t.category,
-              status: t.status === "QUARANTINED" ? "SUSPICIOUS" : t.status === "PROCESSED" ? "CLEAN" : "PENDING",
-            }));
-            setTransactions(updatedTxs);
-          }
-        } catch {}
-      }, 1800);
-    }
   };
 
   return (

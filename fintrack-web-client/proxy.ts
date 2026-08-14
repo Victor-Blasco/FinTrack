@@ -20,6 +20,7 @@ const SERVICE_ROUTES = [
   { prefix: '/api/v1/accounts', targetUrl: 'http://localhost:8083' },
   { prefix: '/api/v1/budgets', targetUrl: 'http://localhost:8083' },
   { prefix: '/api/v1/transactions', targetUrl: 'http://localhost:8083' },
+  { prefix: '/api/v1/events', targetUrl: 'http://localhost:8083' },
 ]
 
 async function getVerifiedUserId(token: string): Promise<string | null> {
@@ -104,7 +105,13 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('Authorization', `Bearer ${rawToken}`)
   requestHeaders.set('X-User-Id', userId)
 
-  const targetUrl = new URL(pathname, matchedRoute.targetUrl)
+  const isStream = pathname.startsWith('/api/v1/events') || request.headers.get('accept')?.includes('text/event-stream')
+  if (isStream) {
+    requestHeaders.set('Accept', 'text/event-stream')
+    requestHeaders.set('Cache-Control', 'no-cache')
+  }
+
+  const targetUrl = new URL(pathname + request.nextUrl.search, matchedRoute.targetUrl)
 
   try {
     const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await request.blob()
@@ -114,10 +121,24 @@ export async function proxy(request: NextRequest) {
       body,
     })
 
-    const responseData = await backendRes.blob()
     const responseHeaders = new Headers(backendRes.headers)
     responseHeaders.delete('www-authenticate')
 
+    // Flujo streaming directo (SSE) sin buffering ni corte prematuro
+    if (isStream || backendRes.headers.get('content-type')?.includes('text/event-stream')) {
+      responseHeaders.set('Content-Type', 'text/event-stream; charset=utf-8')
+      responseHeaders.set('Cache-Control', 'no-cache, no-transform')
+      responseHeaders.set('Connection', 'keep-alive')
+      responseHeaders.set('X-Accel-Buffering', 'no')
+
+      return new NextResponse(backendRes.body, {
+        status: backendRes.status,
+        statusText: backendRes.statusText,
+        headers: responseHeaders,
+      })
+    }
+
+    const responseData = await backendRes.blob()
     return new NextResponse(responseData, {
       status: backendRes.status,
       statusText: backendRes.statusText,

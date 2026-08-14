@@ -123,7 +123,7 @@ export async function proxy(request: NextRequest) {
       statusText: backendRes.statusText,
       headers: responseHeaders,
     })
-  } catch (targetErr) {
+  } catch {
     return NextResponse.json(
       { success: false, message: `Microservicio en ${matchedRoute.targetUrl} no disponible` },
       { status: 503 }

@@ -5,19 +5,14 @@ import { finTrackApi } from "@/lib/api";
  */
 describe("finTrackApi - HTTP Client Unit Tests", () => {
   beforeEach(() => {
-    // Limpiar mocks e inyectar un token de prueba en localStorage
     global.fetch = jest.fn();
-    Storage.prototype.getItem = jest.fn((key: string) => {
-      if (key === "accessToken") return "mock-jwt-bearer-token";
-      return null;
-    });
   });
 
   afterEach(() => {
     jest.resetAllMocks();
   });
 
-  test("getAccountSummary adjunta el header Authorization y retorna el JSON esperado", async () => {
+  test("getAccountSummary invoca /api/v1/accounts/summary con Content-Type application/json", async () => {
     const mockSummary = {
       id: "acc-1",
       userId: "user-1",
@@ -36,7 +31,6 @@ describe("finTrackApi - HTTP Client Unit Tests", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/v1/accounts/summary", {
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer mock-jwt-bearer-token",
       },
     });
     expect(result).toEqual(mockSummary);
@@ -57,20 +51,22 @@ describe("finTrackApi - HTTP Client Unit Tests", () => {
     expect(global.fetch).toHaveBeenCalledWith("/api/v1/budgets", {
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer mock-jwt-bearer-token",
       },
     });
     expect(result).toEqual(mockBudgets);
   });
 
-  test("lanza un error cuando la API retorna 401 Unauthorized", async () => {
+  test("lanza un error adecuado cuando la API retorna 401 Unauthorized", async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
+      status: 401,
       statusText: "Unauthorized",
+      json: async () => ({ message: "Sesión no válida o expirada" }),
     });
 
     await expect(finTrackApi.getAccountSummary()).rejects.toThrow(
-      "Error al obtener el resumen de cuenta: Unauthorized"
+      "Sesión no válida o expirada"
     );
   });
 });
+

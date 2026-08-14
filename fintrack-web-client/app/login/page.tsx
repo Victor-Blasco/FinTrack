@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck, Zap } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -22,7 +21,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   /**
    * Maneja la autenticación del formulario enviando las credenciales al endpoint del BFF Gateway.

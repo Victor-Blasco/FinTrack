@@ -23,8 +23,11 @@ import java.nio.charset.StandardCharsets;
 @Configuration
 public class JwtConfig {
 
-    @Value("${jwt.secret:defaultSecretKeyThatIsAtLeast32BytesLongForHmacSha256!}")
-    private String jwtSecret;
+    private final JwtProperties jwtProperties;
+
+    public JwtConfig(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
 
     /**
      * Define la clave secreta HMAC-SHA256 utilizada para firmar y verificar tokens JWT.
@@ -33,7 +36,7 @@ public class JwtConfig {
      */
     @Bean
     public SecretKey secretKey() {
-        return new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        return new SecretKeySpec(jwtProperties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
     /**

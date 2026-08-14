@@ -21,7 +21,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     Optional<Account> findByAccountNumber(String accountNumber);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Account a SET a.balance = a.balance + :amount WHERE a.id = :accountId")
     int updateBalanceAtomic(@Param("accountId") UUID accountId, @Param("amount") BigDecimal amount);
 }

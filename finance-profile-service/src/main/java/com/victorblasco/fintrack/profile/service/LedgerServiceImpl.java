@@ -102,6 +102,12 @@ public class LedgerServiceImpl implements LedgerService {
 
         if (txOpt.isPresent()) {
             tx = txOpt.get();
+            // Idempotencia: Si la transacción ya fue procesada o puesta en cuarentena, no re-aplicar saldo
+            if (tx.getStatus() == Status.PROCESSED || tx.getStatus() == Status.QUARANTINED) {
+                log.info("Transacción [{}] ya procesada con estado [{}]. Ignorando veredicto duplicado.",
+                        tx.getId(), tx.getStatus());
+                return;
+            }
         } else {
             log.warn("Transacción [{}] no encontrada al recibir veredicto. Creando entidad con estado definitivo [{}]",
                     event.transactionId(), event.verdict());
@@ -128,7 +134,9 @@ public class LedgerServiceImpl implements LedgerService {
             tx.setStatus(Status.PROCESSED);
             if (tx.getAmount() != null && tx.getAmount().compareTo(BigDecimal.ZERO) != 0) {
                 accountRepository.updateBalanceAtomic(tx.getAccount().getId(), tx.getAmount());
-                budgetService.applyExpenseToBudget(tx.getUserId(), tx.getCategory(), tx.getAmount());
+                if (tx.getCategory() != null && tx.getCategory() != Category.UNASSIGNED) {
+                    budgetService.applyExpenseToBudget(tx.getUserId(), tx.getCategory(), tx.getAmount());
+                }
             }
             log.info("Veredicto CLEAN aplicado a transacción [{}]", tx.getId());
         } else {
@@ -151,6 +159,7 @@ public class LedgerServiceImpl implements LedgerService {
         }
 
         Transaction tx = txOpt.get();
+        Category previousCategory = tx.getCategory();
         Category newCategory;
         try {
             newCategory = Category.valueOf(event.category());
@@ -162,7 +171,7 @@ public class LedgerServiceImpl implements LedgerService {
         transactionRepository.save(tx);
         log.info("Categoría [{}] asignada a la transacción [{}]", newCategory, tx.getId());
 
-        if (tx.getStatus() == Status.PROCESSED) {
+        if (tx.getStatus() == Status.PROCESSED && previousCategory == Category.UNASSIGNED && newCategory != Category.UNASSIGNED) {
             budgetService.applyExpenseToBudget(tx.getUserId(), newCategory, tx.getAmount());
         }
     }

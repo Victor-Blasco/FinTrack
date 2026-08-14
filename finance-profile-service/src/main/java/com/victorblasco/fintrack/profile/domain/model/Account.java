@@ -8,7 +8,13 @@ import java.util.UUID;
  * Entidad JPA que representa la cuenta bancaria y saldo del usuario.
  */
 @Entity
-@Table(name = "accounts")
+@Table(
+    name = "accounts",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_accounts_user_currency", columnNames = {"user_id", "currency"}),
+        @UniqueConstraint(name = "uk_accounts_account_number", columnNames = {"account_number"})
+    }
+)
 public class Account {
 
     @Id

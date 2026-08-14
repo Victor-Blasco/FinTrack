@@ -21,7 +21,7 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
 
     List<Budget> findByUserId(UUID userId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Budget b SET b.accumulatedSpend = b.accumulatedSpend + :amount WHERE b.id = :budgetId")
     int incrementAccumulatedSpendAtomic(@Param("budgetId") UUID budgetId, @Param("amount") BigDecimal amount);
 }

@@ -80,9 +80,10 @@ public class FraudVerdictConsumerTest {
     @DisplayName("Debe categorizar y publicar el evento enriquecido cuando el veredicto es CLEAN")
     public void shouldCategorizeAndPublishWhenVerdictIsClean() {
         UUID transactionId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
         FraudVerdictEvent cleanEvent = new FraudVerdictEvent(
                 transactionId,
-                UUID.randomUUID(),
+                userId,
                 new BigDecimal("-50.00"),
                 "MERCADONA S.A.",
                 Verdict.CLEAN,
@@ -91,11 +92,11 @@ public class FraudVerdictConsumerTest {
                 LocalDateTime.now()
         );
 
-        when(categorizationEngine.categorize("MERCADONA S.A.")).thenReturn(Category.ALIMENTACION);
+        when(categorizationEngine.categorize("MERCADONA S.A.", userId)).thenReturn(Category.ALIMENTACION);
 
         consumer.consume(cleanEvent);
 
-        verify(categorizationEngine, times(1)).categorize("MERCADONA S.A.");
+        verify(categorizationEngine, times(1)).categorize("MERCADONA S.A.", userId);
 
         ArgumentCaptor<TransactionCategorizedEvent> captor = ArgumentCaptor.forClass(TransactionCategorizedEvent.class);
         verify(categorizationProducer, times(1)).sendCategorizedEvent(captor.capture());

@@ -28,9 +28,13 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
 
     private static final BigDecimal HIGH_AMOUNT_THRESHOLD = new BigDecimal("2000.00");
     private static final BigDecimal EXTREME_AMOUNT_THRESHOLD = new BigDecimal("10000.00");
+    private static final BigDecimal DAILY_SPEND_THRESHOLD = new BigDecimal("3000.00");
+    private static final long DAILY_SPEND_WINDOW_SECONDS = 86400L;
     private static final int FREQUENCY_WINDOW_SECONDS = 60;
     private static final int FREQUENCY_MAX_TRANSACTIONS = 3;
     private static final int RISK_THRESHOLD = 50;
+
+    private record SpendEntry(Instant timestamp, BigDecimal amount) {}
 
     private static final Set<String> HIGH_RISK_KEYWORDS = Set.of(
             // Casas de Apuestas y Juegos de Azar
@@ -57,6 +61,14 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
      */
     private final Cache<UUID, Deque<Instant>> userFrequencyCache = Caffeine.newBuilder()
             .expireAfterAccess(60, TimeUnit.SECONDS)
+            .maximumSize(100_000)
+            .build();
+
+    /**
+     * Caché delimitada de auto-evicción con ventana de 24 horas para rastrear el gasto acumulado diario por usuario.
+     */
+    private final Cache<UUID, Deque<SpendEntry>> dailySpendCache = Caffeine.newBuilder()
+            .expireAfterAccess(24, TimeUnit.HOURS)
             .maximumSize(100_000)
             .build();
 
@@ -101,6 +113,12 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
                 riskScore += 30;
                 reasons.add(FraudReason.HIGH_AMOUNT_ANOMALY);
             }
+        }
+
+        // 5. Pico de Gasto Acumulado Diario (> 3.000,00 EUR en compras consecutivas en 24h)
+        if (checkDailySpendSpike(event.userId(), now, event.amount())) {
+            riskScore += 30;
+            reasons.add(FraudReason.DAILY_SPEND_SPIKE);
         }
 
         Verdict verdict = (riskScore >= RISK_THRESHOLD) ? Verdict.SUSPICIOUS : Verdict.CLEAN;
@@ -150,5 +168,33 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
         }
         int hour = timestamp.atZone(ZoneOffset.UTC).getHour();
         return hour >= 1 && hour < 6;
+    }
+
+    /**
+     * Verifica si el gasto acumulado en compras consecutivas en la ventana de 24 horas supera los 3.000,00 EUR.
+     */
+    private boolean checkDailySpendSpike(UUID userId, Instant eventInstant, BigDecimal amount) {
+        if (userId == null || amount == null) {
+            return false;
+        }
+        BigDecimal absAmount = amount.abs();
+        Deque<SpendEntry> spendEntries = dailySpendCache.get(userId, k -> new ArrayDeque<>());
+        synchronized (spendEntries) {
+            Instant cutoff = eventInstant.minusSeconds(DAILY_SPEND_WINDOW_SECONDS);
+            while (!spendEntries.isEmpty() && spendEntries.peekFirst().timestamp().isBefore(cutoff)) {
+                spendEntries.pollFirst();
+            }
+            spendEntries.addLast(new SpendEntry(eventInstant, absAmount));
+
+            if (spendEntries.size() < 2) {
+                return false;
+            }
+
+            BigDecimal totalDailySpend = BigDecimal.ZERO;
+            for (SpendEntry entry : spendEntries) {
+                totalDailySpend = totalDailySpend.add(entry.amount());
+            }
+            return totalDailySpend.compareTo(DAILY_SPEND_THRESHOLD) > 0;
+        }
     }
 }

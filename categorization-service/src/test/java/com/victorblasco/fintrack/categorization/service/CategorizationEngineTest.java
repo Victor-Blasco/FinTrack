@@ -1,12 +1,20 @@
 package com.victorblasco.fintrack.categorization.service;
 
 import com.victorblasco.fintrack.categorization.domain.Category;
+import com.victorblasco.fintrack.categorization.domain.UserCategoryRule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class CategorizationEngineTest {
 
@@ -101,5 +109,63 @@ public class CategorizationEngineTest {
     public void shouldCategorizeOtros(String merchant) {
         Category category = categorizationEngine.categorize(merchant);
         assertEquals(Category.OTROS, category);
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("Debe priorizar las reglas personalizadas del usuario sobre las coincidencias Fast-Path del sistema")
+    public void shouldPrioritizeUserRulesOverFastPath() {
+        UUID userId = UUID.randomUUID();
+        UserCategoryRuleService ruleService = org.mockito.Mockito.mock(UserCategoryRuleService.class);
+        CategorizationEngine engineWithRules = new CategorizationEngineImpl(ruleService);
+
+        // Mercadona es ALIMENTACION por defecto, pero el usuario define regla -> OCIO
+        org.mockito.Mockito.when(ruleService.getRulesByUserId(userId)).thenReturn(List.of(
+                new com.victorblasco.fintrack.categorization.domain.UserCategoryRule(
+                        UUID.randomUUID(), userId, "MERCADONA", Category.OCIO, java.time.Instant.now()
+                )
+        ));
+
+        // Con userId del usuario, devuelve la categoría personalizada OCIO
+        Category userCategory = engineWithRules.categorize("MERCADONA", userId);
+        assertEquals(Category.OCIO, userCategory);
+
+        // Con otro usuario o null, devuelve la categoría del sistema ALIMENTACION
+        Category defaultCategory = engineWithRules.categorize("MERCADONA", null);
+        assertEquals(Category.ALIMENTACION, defaultCategory);
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("Debe emparejar reglas de usuario ignorando mayúsculas/minúsculas y por coincidencia de subcadena")
+    public void shouldMatchUserRulesCaseInsensitiveAndSubstring() {
+        UUID userId = UUID.randomUUID();
+        UserCategoryRuleService ruleService = org.mockito.Mockito.mock(UserCategoryRuleService.class);
+        CategorizationEngine engineWithRules = new CategorizationEngineImpl(ruleService);
+
+        org.mockito.Mockito.when(ruleService.getRulesByUserId(userId)).thenReturn(List.of(
+                new com.victorblasco.fintrack.categorization.domain.UserCategoryRule(
+                        UUID.randomUUID(), userId, "café de la esquina", Category.OCIO, java.time.Instant.now()
+                )
+        ));
+
+        Category category = engineWithRules.categorize("PAGO EN CAFÉ DE LA ESQUINA S.L.", userId);
+        assertEquals(Category.OCIO, category);
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("Debe recurrir al catálogo del sistema si ninguna regla del usuario coincide")
+    public void shouldFallbackToSystemCatalogWhenNoUserRuleMatches() {
+        UUID userId = UUID.randomUUID();
+        UserCategoryRuleService ruleService = org.mockito.Mockito.mock(UserCategoryRuleService.class);
+        CategorizationEngine engineWithRules = new CategorizationEngineImpl(ruleService);
+
+        org.mockito.Mockito.when(ruleService.getRulesByUserId(userId)).thenReturn(List.of(
+                new com.victorblasco.fintrack.categorization.domain.UserCategoryRule(
+                        UUID.randomUUID(), userId, "TIENDA INEXISTENTE", Category.OTROS, java.time.Instant.now()
+                )
+        ));
+
+        // Netflix coincide con Fast-Path del sistema -> OCIO
+        Category category = engineWithRules.categorize("NETFLIX", userId);
+        assertEquals(Category.OCIO, category);
     }
 }

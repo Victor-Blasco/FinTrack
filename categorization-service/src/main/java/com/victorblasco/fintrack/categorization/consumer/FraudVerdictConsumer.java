@@ -53,8 +53,9 @@ public class FraudVerdictConsumer {
         }
 
         if (event.verdict() == Verdict.CLEAN) {
-            log.info("Procesando categorización para transacción CLEAN [{}] en comercio [{}]", event.transactionId(), event.merchant());
-            Category category = categorizationEngine.categorize(event.merchant());
+            log.info("Procesando categorización para transacción CLEAN [{}] de usuario [{}] en comercio [{}]",
+                    event.transactionId(), event.userId(), event.merchant());
+            Category category = categorizationEngine.categorize(event.merchant(), event.userId());
 
             TransactionCategorizedEvent categorizedEvent = new TransactionCategorizedEvent(
                     event.transactionId(),

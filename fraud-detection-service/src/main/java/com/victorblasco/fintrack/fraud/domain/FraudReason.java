@@ -22,5 +22,10 @@ public enum FraudReason {
     /**
      * Operación realizada en horario nocturno anómalo (01:00 AM - 05:59 AM).
      */
-    OFF_HOURS_ACTIVITY
+    OFF_HOURS_ACTIVITY,
+
+    /**
+     * Incremento anómalo de gasto acumulado (> 3.000,00 EUR) en una ventana de 24 horas.
+     */
+    DAILY_SPEND_SPIKE
 }

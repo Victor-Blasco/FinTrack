@@ -1,19 +1,25 @@
 package com.victorblasco.fintrack.categorization.service;
 
 import com.victorblasco.fintrack.categorization.domain.Category;
+import com.victorblasco.fintrack.categorization.domain.UserCategoryRule;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
  * Implementación de alto rendimiento del motor de categorización automática de transacciones.
  * <p>
- * Utiliza una estrategia de búsqueda en dos niveles (Two-Pass Lookup):
+ * Utiliza una estrategia de búsqueda multinivel:
  * <ol>
+ *   <li><b>User-Rules Path:</b> Evaluación prioritaria de reglas personalizadas configuradas por el usuario.</li>
  *   <li><b>Fast-Path O(1):</b> Consulta de coincidencias exactas en un {@link HashMap} inmutable con amplio catálogo de marcas.</li>
  *   <li><b>Slow-Path O(N):</b> Respaldo mediante patrones de expresiones regulares precompiladas para palabras clave genéricas.</li>
  * </ol>
@@ -22,8 +28,20 @@ import java.util.regex.Pattern;
 @Service
 public class CategorizationEngineImpl implements CategorizationEngine {
 
+    private final UserCategoryRuleService userCategoryRuleService;
+
     private static final Map<String, Category> EXACT_MERCHANT_MAP;
     private static final Map<Pattern, Category> REGEX_PATTERN_MAP;
+
+    @Autowired
+    public CategorizationEngineImpl(UserCategoryRuleService userCategoryRuleService) {
+        this.userCategoryRuleService = userCategoryRuleService;
+    }
+
+    public CategorizationEngineImpl() {
+        this.userCategoryRuleService = null;
+    }
+
 
     static {
         // 1. Fast-Path: Catálogo amplio de coincidencias exactas O(1)
@@ -164,26 +182,42 @@ public class CategorizationEngineImpl implements CategorizationEngine {
     }
 
     /**
-     * Categoriza un nombre de comerciante/establecimiento utilizando una estrategia de búsqueda de dos niveles.
+     * Categoriza un nombre de comerciante/establecimiento utilizando una estrategia de búsqueda multinivel.
      * <p>
      * 1. Limpieza y normalización básica (trim y mayúsculas).<br>
-     * 2. Búsqueda exacta O(1) en el mapa estático de comercios conocidos.<br>
-     * 3. Evaluación de patrones de expresiones regulares para comerciantes genéricos.<br>
+     * 2. Evaluación de reglas personalizadas del usuario (si se proporciona userId).<br>
+     * 3. Búsqueda exacta Fast-Path O(1) en el mapa estático de comercios conocidos.<br>
+     * 4. Evaluación de patrones de expresiones regulares Slow-Path para comerciantes genéricos.<br>
      * Si no se encuentra coincidencia, retorna {@link Category#OTROS}.
      * </p>
      *
      * @param rawMerchant Nombre del comerciante o concepto original recibido de la transacción.
+     * @param userId Identificador único del usuario (opcional, puede ser nulo).
      * @return La {@link Category} correspondiente o {@link Category#OTROS} si no coincide con ninguna regla.
      */
     @Override
-    public Category categorize(String rawMerchant) {
+    public Category categorize(String rawMerchant, UUID userId) {
         if (rawMerchant == null || rawMerchant.isBlank()) {
             return Category.OTROS;
         }
 
         // Paso 1: Normalización rápida (Trim + Uppercase)
-        String normalizedMerchant = rawMerchant.trim().toUpperCase();
+        String normalizedMerchant = rawMerchant.trim().toUpperCase(Locale.ROOT);
 
+        // Paso 0: Reglas personalizadas del usuario (Prioridad Máxima)
+        if (userId != null && userCategoryRuleService != null) {
+            List<UserCategoryRule> userRules = userCategoryRuleService.getRulesByUserId(userId);
+            if (userRules != null && !userRules.isEmpty()) {
+                for (UserCategoryRule rule : userRules) {
+                    if (rule.pattern() != null && !rule.pattern().isBlank()) {
+                        String rulePattern = rule.pattern().trim().toUpperCase(Locale.ROOT);
+                        if (normalizedMerchant.contains(rulePattern)) {
+                            return rule.category();
+                        }
+                    }
+                }
+            }
+        }
 
         // Paso 2: Fast-Path O(1) - Búsqueda exacta en HashMap
         Category exactCategory = EXACT_MERCHANT_MAP.get(normalizedMerchant);
@@ -199,5 +233,10 @@ public class CategorizationEngineImpl implements CategorizationEngine {
         }
 
         return Category.OTROS;
+    }
+
+    @Override
+    public Category categorize(String rawMerchant) {
+        return categorize(rawMerchant, null);
     }
 }

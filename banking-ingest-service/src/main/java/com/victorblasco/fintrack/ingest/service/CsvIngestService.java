@@ -23,7 +23,6 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.UUID;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
@@ -45,6 +44,7 @@ public class CsvIngestService {
 
     private static final Logger log = LoggerFactory.getLogger(CsvIngestService.class);
     private static final int BUFFER_SIZE = 8192;
+    private static final int AUDIT_BATCH_SIZE = 500;
 
     private final CsvUploadRepository csvUploadRepository;
     private final CsvBatchAuditRepository csvBatchAuditRepository;
@@ -105,18 +105,16 @@ public class CsvIngestService {
     }
 
     /**
-     * Lee y analiza asíncronamente el archivo CSV línea a línea en streaming.
-     * <p>
-     * Por cada fila válida, publica un evento {@link RawTransactionEvent} en Kafka.
-     * Si una fila está malformada, acumula el registro de error e inserta los fallos en lote al finalizar.
-     * </p>
+     * Procesa de forma asíncrona el contenido de un archivo CSV línea por línea.
+     * Genera eventos {@link RawTransactionEvent} para filas válidas y persiste
+     * registros de auditoría {@link CsvBatchAudit} con vaciado por lotes para optimizar memoria.
      *
-     * @param file archivo multipart CSV
+     * @param file archivo CSV cargado
      * @param batchId identificador del lote
      */
     @Async
     public void parseAndStreamCsv(MultipartFile file, UUID batchId) {
-        log.info("Iniciando análisis asíncrono de lotes CSV para batchId={}", batchId);
+        log.info("[Kafka Pipeline] Iniciando análisis asíncrono de lotes CSV para batchId={}", batchId);
         List<CsvBatchAudit> auditList = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
@@ -161,7 +159,7 @@ public class CsvIngestService {
 
                     rawTransactionProducer.send(event);
                 } catch (Exception ex) {
-                    log.error("Fila corrupta en batchId={} fila={}: {}", batchId, rowNumber, ex.getMessage());
+                    log.error("[Kafka Pipeline] Fila corrupta en batchId={} fila={}: {}", batchId, rowNumber, ex.getMessage());
                     CsvBatchAudit audit = new CsvBatchAudit(
                             batchId,
                             rowNumber,
@@ -170,17 +168,22 @@ public class CsvIngestService {
                             Instant.now()
                     );
                     auditList.add(audit);
+                    if (auditList.size() >= AUDIT_BATCH_SIZE) {
+                        csvBatchAuditRepository.saveAll(auditList);
+                        auditList.clear();
+                    }
                 }
             }
 
             if (!auditList.isEmpty()) {
                 csvBatchAuditRepository.saveAll(auditList);
-                log.info("Guardados en lote {} registros de auditoría de errores para batchId={}", auditList.size(), batchId);
+                log.info("[Kafka Pipeline] Guardados en lote {} registros de auditoría de errores finales para batchId={}", auditList.size(), batchId);
+                auditList.clear();
             }
 
-            log.info("Lote CSV batchId={} procesado completamente", batchId);
+            log.info("[Kafka Pipeline] Lote CSV batchId={} procesado completamente", batchId);
         } catch (Exception ex) {
-            log.error("Error al leer el archivo CSV para batchId={}: {}", batchId, ex.getMessage());
+            log.error("[Kafka Pipeline] Error al leer el archivo CSV para batchId={}: {}", batchId, ex.getMessage());
         }
     }
 

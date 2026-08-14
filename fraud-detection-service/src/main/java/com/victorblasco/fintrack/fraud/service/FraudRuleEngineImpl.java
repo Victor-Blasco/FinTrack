@@ -71,9 +71,7 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
         int riskScore = 0;
         List<FraudReason> reasons = new ArrayList<>();
 
-        Instant now = event.timestamp() != null
-                ? event.timestamp().toInstant(ZoneOffset.UTC)
-                : Instant.now();
+        Instant now = event.timestamp() != null ? event.timestamp() : Instant.now();
 
         // 1. Evaluación de Alta Frecuencia (Ventana deslizante de 60 segundos con evicción automática)
         if (checkHighFrequency(event.userId(), now)) {
@@ -87,8 +85,8 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
             reasons.add(FraudReason.HIGH_RISK_MERCHANT);
         }
 
-        // 3. Actividad en Horario Nocturno Anómalo (01:00 AM - 05:59 AM)
-        if (isOffHours(event.timestamp())) {
+        // 3. Actividad en Horario Nocturno Anómalo (01:00 AM - 05:59 AM UTC)
+        if (isOffHours(now)) {
             riskScore += 25;
             reasons.add(FraudReason.OFF_HOURS_ACTIVITY);
         }
@@ -144,13 +142,13 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
     }
 
     /**
-     * Evalúa si la transacción ocurre en horario nocturno anómalo (entre la 01:00 AM y las 05:59 AM).
+     * Evalúa si la transacción ocurre en horario nocturno anómalo (entre la 01:00 AM y las 05:59 AM UTC).
      */
-    private boolean isOffHours(LocalDateTime timestamp) {
+    private boolean isOffHours(Instant timestamp) {
         if (timestamp == null) {
             return false;
         }
-        int hour = timestamp.getHour();
+        int hour = timestamp.atZone(ZoneOffset.UTC).getHour();
         return hour >= 1 && hour < 6;
     }
 }

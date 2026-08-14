@@ -45,7 +45,9 @@ public class RawTransactionConsumerTest {
                 new BigDecimal("42.50"),
                 "EUR",
                 "MERCADONA",
-                LocalDateTime.now()
+                java.time.Instant.now(),
+                "PSD2_WEBHOOK",
+                null
         );
 
         when(fraudRuleEngine.evaluate(any())).thenReturn(
@@ -68,7 +70,9 @@ public class RawTransactionConsumerTest {
                 new BigDecimal("850.00"),
                 "EUR",
                 "CASINO OVERSEAS",
-                LocalDateTime.now()
+                java.time.Instant.now(),
+                "PSD2_WEBHOOK",
+                null
         );
 
         when(fraudRuleEngine.evaluate(any())).thenReturn(

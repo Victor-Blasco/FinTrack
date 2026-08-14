@@ -34,7 +34,9 @@ public class FraudRuleEngineTest {
                 new BigDecimal("5000.00"),
                 "EUR",
                 "CONCESIONARIO MOTOR SEAT",
-                LocalDateTime.of(2026, 8, 2, 17, 30)
+                java.time.Instant.parse("2026-08-02T17:30:00Z"),
+                "PSD2_WEBHOOK",
+                null
         );
 
         FraudEvaluationResult result = fraudRuleEngine.evaluate(event);
@@ -45,7 +47,7 @@ public class FraudRuleEngineTest {
     }
 
     @Test
-    @DisplayName("Debe dar veredicto SUSPICIOUS para una compra de importe elevado en horario nocturno anómalo (03:30 AM)")
+    @DisplayName("Debe dar veredicto SUSPICIOUS para una compra de importe elevado en horario nocturno anómalo (03:30 AM UTC)")
     public void shouldReturnSuspiciousForHighAmountAtOffHours() {
         UUID userId = UUID.randomUUID();
         RawTransactionEvent event = new RawTransactionEvent(
@@ -55,7 +57,9 @@ public class FraudRuleEngineTest {
                 new BigDecimal("2500.00"),
                 "EUR",
                 "TIENDA NOCTURNA",
-                LocalDateTime.of(2026, 8, 2, 3, 30)
+                java.time.Instant.parse("2026-08-02T03:30:00Z"),
+                "PSD2_WEBHOOK",
+                null
         );
 
         FraudEvaluationResult result = fraudRuleEngine.evaluate(event);
@@ -77,7 +81,9 @@ public class FraudRuleEngineTest {
                 new BigDecimal("2500.00"),
                 "EUR",
                 "CASINO ROYAL ONLINE",
-                LocalDateTime.of(2026, 8, 2, 15, 0)
+                java.time.Instant.parse("2026-08-02T15:00:00Z"),
+                "PSD2_WEBHOOK",
+                null
         );
 
         FraudEvaluationResult result = fraudRuleEngine.evaluate(event);
@@ -92,7 +98,7 @@ public class FraudRuleEngineTest {
     @DisplayName("Debe dar veredicto SUSPICIOUS cuando un usuario supera las 3 transacciones en 60 segundos (Alta Frecuencia)")
     public void shouldReturnSuspiciousForHighFrequencyTransactions() {
         UUID userId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        java.time.Instant now = java.time.Instant.now();
 
         for (int i = 1; i <= 3; i++) {
             RawTransactionEvent event = new RawTransactionEvent(
@@ -102,7 +108,9 @@ public class FraudRuleEngineTest {
                     new BigDecimal("15.00"),
                     "EUR",
                     "MERCADONA",
-                    now.plusSeconds(i * 5)
+                    now.plusSeconds(i * 5),
+                    "PSD2_WEBHOOK",
+                    null
             );
             FraudEvaluationResult res = fraudRuleEngine.evaluate(event);
             assertEquals(Verdict.CLEAN, res.verdict());
@@ -116,7 +124,9 @@ public class FraudRuleEngineTest {
                 new BigDecimal("15.00"),
                 "EUR",
                 "MERCADONA",
-                now.plusSeconds(25)
+                now.plusSeconds(25),
+                "PSD2_WEBHOOK",
+                null
         );
 
         FraudEvaluationResult fourthResult = fraudRuleEngine.evaluate(fourthEvent);

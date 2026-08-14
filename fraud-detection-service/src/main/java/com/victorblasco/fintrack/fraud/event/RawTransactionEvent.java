@@ -1,7 +1,7 @@
 package com.victorblasco.fintrack.fraud.event;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -13,7 +13,9 @@ import java.util.UUID;
  * @param amount importe monetario
  * @param currency código ISO de divisa (ej: EUR)
  * @param merchant nombre del comercio o entidad receptora
- * @param timestamp fecha y hora del movimiento
+ * @param timestamp fecha y hora del movimiento en formato Instant UTC
+ * @param source origen de la transacción (ej: PSD2_WEBHOOK, CSV_IMPORT, MANUAL_ENTRY)
+ * @param batchId identificador opcional del lote si proviene de archivo CSV
  */
 public record RawTransactionEvent(
         UUID transactionId,
@@ -22,6 +24,8 @@ public record RawTransactionEvent(
         BigDecimal amount,
         String currency,
         String merchant,
-        LocalDateTime timestamp
+        Instant timestamp,
+        String source,
+        String batchId
 ) {
 }

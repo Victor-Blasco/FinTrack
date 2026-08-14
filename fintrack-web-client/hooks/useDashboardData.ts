@@ -4,36 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { finTrackApi } from "@/lib/api";
 import { BudgetCategory, Transaction, DEFAULT_SYSTEM_BUDGETS } from "@/types/dashboard";
-
-interface SseEventPayload {
-  type?: string;
-  event?: string;
-  id?: string;
-  transactionId?: string;
-  merchant?: string;
-  amount?: number;
-  currency?: string;
-  category?: string;
-  status?: string;
-  timestamp?: string;
-  balance?: number;
-  accountBalance?: number;
-  accumulatedSpend?: number;
-  monthlyLimit?: number;
-  data?: SseEventPayload;
-  payload?: SseEventPayload;
-}
-
-function normalizeCategoryName(rawCategory: string): string {
-  const cat = (rawCategory || "").toUpperCase().replace(/\s+/g, "_");
-  if (cat === "ALIMENTACION") return "Alimentación";
-  if (cat === "VIVIENDA") return "Vivienda & Servicios";
-  if (cat === "OCIO") return "Ocio & Restauración";
-  if (cat === "TRANSPORTE") return "Transporte";
-  if (cat === "SALUD_DEPORTE" || cat === "SALUD") return "Salud & Deporte";
-  if (cat === "OTROS") return "Otros Gastos";
-  return rawCategory;
-}
+import {
+  SseEventPayload,
+  SSE_EVENT_NAMES,
+  normalizeCategoryName,
+  mapSseToTransaction,
+} from "@/lib/sseUtils";
 
 function getCategoryIcon(rawCategory: string): string {
   const cat = (rawCategory || "").toUpperCase().replace(/\s+/g, "_");
@@ -85,18 +61,17 @@ export function useDashboardData() {
 
       let loadedBudgets: BudgetCategory[] = [];
       if (budgetsRes.status === "fulfilled" && budgetsRes.value && budgetsRes.value.length > 0) {
-        loadedBudgets = budgetsRes.value.map((b) => {
-          const rawCat = (b.category || "").toUpperCase().replace(/\s+/g, "_");
-          return {
-            id: b.id,
-            name: normalizeCategoryName(b.category),
-            spent: b.accumulatedSpend,
-            limit: b.monthlyLimit,
-            icon: getCategoryIcon(b.category),
-            isCustom: !["ALIMENTACION", "VIVIENDA", "OCIO", "TRANSPORTE", "SALUD_DEPORTE", "OTROS"].includes(rawCat),
-            subItems: [],
-          };
-        });
+        loadedBudgets = budgetsRes.value.map((b) => ({
+          id: b.id,
+          name: normalizeCategoryName(b.category),
+          spent: b.accumulatedSpend,
+          limit: b.monthlyLimit,
+          icon: getCategoryIcon(b.category),
+          isCustom: !["ALIMENTACION", "VIVIENDA", "OCIO", "TRANSPORTE", "SALUD_DEPORTE", "OTROS"].includes(
+            (b.category || "").toUpperCase().replace(/\s+/g, "_")
+          ),
+          subItems: [],
+        }));
       } else {
         const savedBudgets = typeof window !== "undefined" ? localStorage.getItem("fintrack_saved_budgets") : null;
         if (savedBudgets) {
@@ -161,74 +136,40 @@ export function useDashboardData() {
     if (!rawPayload) return;
     const data: SseEventPayload = rawPayload.data || rawPayload.payload || rawPayload;
 
-    // 1. Actualización reactiva instantánea del saldo contable
+    // 1. Actualización reactiva del saldo contable
     if (typeof data.balance === "number") {
       setAccountBalance(data.balance);
     } else if (typeof data.accountBalance === "number") {
       setAccountBalance(data.accountBalance);
     }
 
-    // 2. Actualización reactiva instantánea de transacciones
-    const txId = data.id || data.transactionId;
-    const hasTxFields = txId || data.merchant || typeof data.amount === "number";
-
-    if (hasTxFields) {
-      const resolvedId = txId || `tx-sse-${Date.now()}`;
-      const resolvedMerchant = data.merchant || "Movimiento registrado";
-      const resolvedAmount = typeof data.amount === "number" ? data.amount : 0;
-      const rawCategory = data.category || "General";
-      const resolvedCategory = normalizeCategoryName(rawCategory);
-
-      const rawStatus = (data.status || data.type || "PENDING").toUpperCase();
-      const resolvedStatus: "CLEAN" | "SUSPICIOUS" | "PENDING" =
-        rawStatus.includes("SUSPICIOUS") || rawStatus.includes("QUARANTINE") || rawStatus.includes("FRAUD")
-          ? "SUSPICIOUS"
-          : rawStatus.includes("CLEAN") || rawStatus.includes("PROCESSED")
-          ? "CLEAN"
-          : "PENDING";
-
-      const resolvedDate = data.timestamp ? new Date(data.timestamp).toLocaleDateString("es-ES") : "Hoy";
-
-      const incomingTx: Transaction = {
-        id: resolvedId,
-        merchant: resolvedMerchant,
-        date: resolvedDate,
-        amount: resolvedAmount,
-        category: resolvedCategory,
-        status: resolvedStatus,
-      };
-
+    // 2. Actualización reactiva de transacciones
+    const incomingTx = mapSseToTransaction(rawPayload);
+    if (incomingTx) {
       setTransactions((prevTxs) => {
         const existingIdx = prevTxs.findIndex(
           (t) =>
-            t.id === resolvedId ||
-            (t.merchant.toLowerCase() === resolvedMerchant.toLowerCase() &&
-              Math.abs(t.amount - resolvedAmount) < 0.01 &&
+            t.id === incomingTx.id ||
+            (t.merchant.toLowerCase() === incomingTx.merchant.toLowerCase() &&
+              Math.abs(t.amount - incomingTx.amount) < 0.01 &&
               t.status === "PENDING")
         );
 
         if (existingIdx >= 0) {
           const updated = [...prevTxs];
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            id: resolvedId,
-            merchant: resolvedMerchant,
-            amount: resolvedAmount,
-            category: resolvedCategory,
-            status: resolvedStatus,
-          };
+          updated[existingIdx] = incomingTx;
           return updated;
         }
         return [incomingTx, ...prevTxs];
       });
 
-      // Actualizar consumo acumulado en el presupuesto de la categoría si es gasto limpio
-      if (resolvedAmount < 0 && resolvedStatus !== "SUSPICIOUS") {
-        const absAmount = Math.abs(resolvedAmount);
+      // Actualizar consumo acumulado en el presupuesto si es gasto limpio
+      if (incomingTx.amount < 0 && incomingTx.status !== "SUSPICIOUS") {
+        const absAmount = Math.abs(incomingTx.amount);
         setBudgets((prevBudgets) =>
           prevBudgets.map((b) => {
             const bName = b.name.toLowerCase();
-            const catName = resolvedCategory.toLowerCase();
+            const catName = incomingTx.category.toLowerCase();
             if (bName.includes(catName) || catName.includes(bName)) {
               return {
                 ...b,
@@ -241,7 +182,7 @@ export function useDashboardData() {
       }
     }
 
-    // 3. Actualización reactiva instantánea de límites y consumos de presupuestos
+    // 3. Actualización reactiva de presupuestos
     if (data.category && (typeof data.accumulatedSpend === "number" || typeof data.monthlyLimit === "number")) {
       setBudgets((prevBudgets) =>
         prevBudgets.map((b) => {
@@ -276,27 +217,23 @@ export function useDashboardData() {
           const parsed = JSON.parse(event.data);
           processSseEvent(parsed);
         } catch {
-          // Si el mensaje es texto plano o heartbeat
+          // Mensaje de texto plano o heartbeat
         }
       };
 
-      // Escucha de eventos genéricos y nombrados
       eventSource.onmessage = handleIncomingMessage;
-      eventSource.addEventListener("transaction", handleIncomingMessage);
-      eventSource.addEventListener("balance", handleIncomingMessage);
-      eventSource.addEventListener("budget", handleIncomingMessage);
-      eventSource.addEventListener("fraud_alert", handleIncomingMessage);
-      eventSource.addEventListener("ping", () => {});
+      eventSource.addEventListener(SSE_EVENT_NAMES.TRANSACTION_UPDATE, handleIncomingMessage);
+      eventSource.addEventListener(SSE_EVENT_NAMES.BALANCE_UPDATE, handleIncomingMessage);
+      eventSource.addEventListener(SSE_EVENT_NAMES.BUDGET_UPDATE, handleIncomingMessage);
+      eventSource.addEventListener(SSE_EVENT_NAMES.PING, () => {});
 
       eventSource.onerror = (err) => {
-        // En caso de corte o reconexión de red, EventSource gestiona el reintento automático
-        console.debug("[FinTrack SSE] Notificación de estado de canal en streaming:", err);
+        console.debug("[FinTrack SSE] Estado de conexión streaming:", err);
       };
     } catch (err) {
-      console.debug("[FinTrack SSE] Inicialización de EventSource:", err);
+      console.debug("[FinTrack SSE] Error de inicialización EventSource:", err);
     }
 
-    // Cierre limpio de la conexión en el desmontaje del efecto
     return () => {
       isMounted = false;
       if (eventSource) {

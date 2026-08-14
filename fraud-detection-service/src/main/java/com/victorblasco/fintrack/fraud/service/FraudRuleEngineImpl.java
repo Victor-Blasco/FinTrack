@@ -126,15 +126,22 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
     }
 
     /**
+     * Purga elementos obsoletos de una cola de ventana deslizante según la marca temporal de corte.
+     */
+    private static <T> void evictBeforeCutoff(Deque<T> deque, Instant cutoff, java.util.function.Function<T, Instant> timestampExtractor) {
+        while (!deque.isEmpty() && timestampExtractor.apply(deque.peekFirst()).isBefore(cutoff)) {
+            deque.pollFirst();
+        }
+    }
+
+    /**
      * Verifica la ventana deslizante de frecuencia para un usuario en los últimos 60 segundos.
      */
     private boolean checkHighFrequency(UUID userId, Instant eventInstant) {
         Deque<Instant> timestamps = userFrequencyCache.get(userId, k -> new ArrayDeque<>());
         synchronized (timestamps) {
             Instant cutoff = eventInstant.minusSeconds(FREQUENCY_WINDOW_SECONDS);
-            while (!timestamps.isEmpty() && timestamps.peekFirst().isBefore(cutoff)) {
-                timestamps.pollFirst();
-            }
+            evictBeforeCutoff(timestamps, cutoff, java.util.function.Function.identity());
             timestamps.addLast(eventInstant);
             return timestamps.size() > FREQUENCY_MAX_TRANSACTIONS;
         }
@@ -181,9 +188,7 @@ public class FraudRuleEngineImpl implements FraudRuleEngine {
         Deque<SpendEntry> spendEntries = dailySpendCache.get(userId, k -> new ArrayDeque<>());
         synchronized (spendEntries) {
             Instant cutoff = eventInstant.minusSeconds(DAILY_SPEND_WINDOW_SECONDS);
-            while (!spendEntries.isEmpty() && spendEntries.peekFirst().timestamp().isBefore(cutoff)) {
-                spendEntries.pollFirst();
-            }
+            evictBeforeCutoff(spendEntries, cutoff, SpendEntry::timestamp);
             spendEntries.addLast(new SpendEntry(eventInstant, absAmount));
 
             if (spendEntries.size() < 2) {

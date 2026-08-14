@@ -143,6 +143,31 @@ public class SseEmitterService {
     }
 
     /**
+     * Tarea periódica programada para enviar un evento liviano de latido (Heartbeat / Ping)
+     * cada 25 segundos a todas las conexiones activas, previniendo el cierre por inactividad
+     * por parte de proxies intermedios o firewalls.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 25000)
+    public void sendHeartbeats() {
+        if (emitters.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<UUID, CopyOnWriteArrayList<SseEmitter>> entry : emitters.entrySet()) {
+            UUID userId = entry.getKey();
+            for (SseEmitter emitter : entry.getValue()) {
+                try {
+                    emitter.send(SseEmitter.event()
+                            .name("ping")
+                            .data("{\"type\":\"HEARTBEAT\"}", MediaType.APPLICATION_JSON));
+                } catch (Exception e) {
+                    log.debug("Eliminando emisor inactivo durante heartbeat para usuario [{}]", userId);
+                    removeEmitter(userId, emitter);
+                }
+            }
+        }
+    }
+
+    /**
      * Método fábrica para permitir sobrescritura en tests si fuera necesario.
      */
     protected SseEmitter createEmitter() {

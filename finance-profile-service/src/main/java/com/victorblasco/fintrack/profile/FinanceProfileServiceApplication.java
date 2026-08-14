@@ -3,6 +3,7 @@ package com.victorblasco.fintrack.profile;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Punto de entrada principal para el microservicio de perfil financiero y libro mayor (finance-profile-service).
@@ -15,6 +16,7 @@ import org.springframework.kafka.annotation.EnableKafka;
  */
 @SpringBootApplication
 @EnableKafka
+@EnableScheduling
 public class FinanceProfileServiceApplication {
 
     public static void main(String[] args) {

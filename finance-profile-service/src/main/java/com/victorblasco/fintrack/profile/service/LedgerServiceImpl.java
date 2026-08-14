@@ -4,6 +4,7 @@ import com.victorblasco.fintrack.profile.domain.model.*;
 import com.victorblasco.fintrack.profile.domain.repository.AccountRepository;
 import com.victorblasco.fintrack.profile.domain.repository.TransactionRepository;
 import com.victorblasco.fintrack.profile.dto.AccountSummaryResponse;
+import com.victorblasco.fintrack.profile.dto.BudgetResponse;
 import com.victorblasco.fintrack.profile.dto.TransactionResponse;
 import com.victorblasco.fintrack.profile.event.FraudVerdictEvent;
 import com.victorblasco.fintrack.profile.event.RawTransactionEvent;
@@ -37,18 +38,24 @@ public class LedgerServiceImpl implements LedgerService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final BudgetService budgetService;
+    private final SseEmitterService sseEmitterService;
 
     /**
-     * Construye el servicio inyectando los repositorios de transacciones y cuentas junto al servicio de presupuestos.
+     * Construye el servicio inyectando los repositorios de transacciones y cuentas junto a los servicios de presupuesto y SSE.
      *
      * @param transactionRepository repositorio JPA de transacciones
      * @param accountRepository repositorio JPA de cuentas bancarias
      * @param budgetService servicio de negocio de presupuestos
+     * @param sseEmitterService servicio de emisión de eventos en tiempo real (SSE)
      */
-    public LedgerServiceImpl(TransactionRepository transactionRepository, AccountRepository accountRepository, BudgetService budgetService) {
+    public LedgerServiceImpl(TransactionRepository transactionRepository,
+                             AccountRepository accountRepository,
+                             BudgetService budgetService,
+                             SseEmitterService sseEmitterService) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.budgetService = budgetService;
+        this.sseEmitterService = sseEmitterService;
     }
 
     /**
@@ -144,6 +151,20 @@ public class LedgerServiceImpl implements LedgerService {
             log.warn("Veredicto SUSPICIOUS (CUARENTENA) aplicado a transacción [{}]", tx.getId());
         }
         transactionRepository.save(tx);
+
+        TransactionResponse txResponse = new TransactionResponse(
+                tx.getId(),
+                tx.getAmount(),
+                tx.getCurrency(),
+                tx.getMerchant(),
+                tx.getStatus(),
+                tx.getCategory(),
+                tx.getTimestamp()
+        );
+        sseEmitterService.broadcastTransactionUpdate(tx.getUserId(), txResponse);
+
+        AccountSummaryResponse accountSummary = getAccountSummary(tx.getUserId());
+        sseEmitterService.broadcastBalanceUpdate(tx.getUserId(), accountSummary);
     }
 
     /**
@@ -174,6 +195,20 @@ public class LedgerServiceImpl implements LedgerService {
         if (tx.getStatus() == Status.PROCESSED && previousCategory == Category.UNASSIGNED && newCategory != Category.UNASSIGNED) {
             budgetService.applyExpenseToBudget(tx.getUserId(), newCategory, tx.getAmount());
         }
+
+        TransactionResponse txResponse = new TransactionResponse(
+                tx.getId(),
+                tx.getAmount(),
+                tx.getCurrency(),
+                tx.getMerchant(),
+                tx.getStatus(),
+                tx.getCategory(),
+                tx.getTimestamp()
+        );
+        sseEmitterService.broadcastTransactionUpdate(tx.getUserId(), txResponse);
+
+        List<BudgetResponse> budgets = budgetService.getUserBudgets(tx.getUserId());
+        sseEmitterService.broadcast(tx.getUserId(), "budget-update", budgets);
     }
 
     /**

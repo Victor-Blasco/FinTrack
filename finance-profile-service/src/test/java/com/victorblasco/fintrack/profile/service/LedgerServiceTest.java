@@ -37,11 +37,14 @@ class LedgerServiceTest {
     @Mock
     private BudgetService budgetService;
 
+    @Mock
+    private SseEmitterService sseEmitterService;
+
     private LedgerServiceImpl ledgerService;
 
     @BeforeEach
     void setUp() {
-        ledgerService = new LedgerServiceImpl(transactionRepository, accountRepository, budgetService);
+        ledgerService = new LedgerServiceImpl(transactionRepository, accountRepository, budgetService, sseEmitterService);
     }
 
     @Test
@@ -88,6 +91,8 @@ class LedgerServiceTest {
         assertThat(tx.getStatus()).isEqualTo(Status.PROCESSED);
         verify(transactionRepository).save(tx);
         verify(accountRepository).updateBalanceAtomic(account.getId(), new BigDecimal("100.00"));
+        verify(sseEmitterService).broadcastTransactionUpdate(eq(userId), any());
+        verify(sseEmitterService).broadcastBalanceUpdate(eq(userId), any());
     }
 
     @Test
@@ -110,6 +115,8 @@ class LedgerServiceTest {
         assertThat(tx.getStatus()).isEqualTo(Status.QUARANTINED);
         verify(transactionRepository).save(tx);
         verify(accountRepository, never()).updateBalanceAtomic(any(), any());
+        verify(sseEmitterService).broadcastTransactionUpdate(eq(userId), any());
+        verify(sseEmitterService).broadcastBalanceUpdate(eq(userId), any());
     }
 
     @Test
@@ -131,5 +138,7 @@ class LedgerServiceTest {
         assertThat(tx.getCategory()).isEqualTo(Category.ALIMENTACION);
         verify(transactionRepository).save(tx);
         verify(budgetService).applyExpenseToBudget(userId, Category.ALIMENTACION, new BigDecimal("50.00"));
+        verify(sseEmitterService).broadcastTransactionUpdate(eq(userId), any());
+        verify(sseEmitterService).broadcast(eq(userId), eq("budget-update"), any());
     }
 }

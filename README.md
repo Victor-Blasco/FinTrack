@@ -1,4 +1,4 @@
-# 📊 Ecosistema FinTrack & FraudShield
+# 📊 Ecosistema FinTrack & FraudShield [PoC / Paused] 
 
 Bienvenido al **Ecosistema FinTrack & FraudShield**, una plataforma de tecnología financiera de nivel empresarial desarrollada en **Java 21/25 (Spring Boot 4.x)** y **Next.js (v16+)**, diseñada bajo una arquitectura de **Microservicios** y el patrón **Event-Driven Architecture (EDA)**.
 
